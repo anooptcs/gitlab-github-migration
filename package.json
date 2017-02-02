@@ -1,0 +1,19 @@
+{
+  "name": "migrate",
+  "version": "0.0.0",
+  "description": "gitlab to github migration tool",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "MtechAccess",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mtechaccess/migrate.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mtechaccess/migrate/issues"
+  },
+  "homepage": "https://github.com/mtechaccess/migrate#readme"
+}
