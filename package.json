@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "description": "gitlab to github migration tool",
   "bin": {
-    "glgh-migrate": "dist/bin/cli.js"
+    "ma-migrate": "dist/bin/cli.js"
   },
   "main": "lib",
   "scripts": {
