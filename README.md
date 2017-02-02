@@ -15,4 +15,13 @@
   - issues
   - wiki
 
-- personal access token: oDwn-_gpW6FYyex4KkkB
+## installation
+
+- clone
+- `npm install`
+- `gulp build`
+
+## configuration
+
+- copy `.settings.json` to `settings.json`
+- edit `settings.json` as necessary
