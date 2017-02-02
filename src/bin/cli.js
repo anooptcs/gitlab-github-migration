@@ -16,6 +16,8 @@ commander
   .option(`-a, --all`, `migrate all know repos`)
   .option(`-D, --debug`, `enable debug messages`)
   .option(`-l, --list`, `list know repos`)
+  .option(`-p, --projects`, `list known remote projects`)
+  .option(`-l, --list`, `list know repos`)
   .option(`-r, --repo [value]`, `migrate specific repo`);
 
 
@@ -35,6 +37,8 @@ if (commander.debug) {
 
 if (commander.list) {
   migrate.list();
+} else if (commander.projects) {
+  migrate.projects();
 } else {
   commander.outputHelp();
 }
