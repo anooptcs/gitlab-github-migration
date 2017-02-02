@@ -19,6 +19,7 @@
     "lodash": "^4.17.4",
     "moment": "^2.17.1",
     "nodegit": "^0.16.0",
+    "p-wait-for": "^1.0.0",
     "request": "^2.79.0",
     "request-promise-native": "^1.0.3",
     "winston": "^2.3.0"
