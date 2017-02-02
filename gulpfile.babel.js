@@ -12,6 +12,7 @@ import minimist from 'minimist';
 
 const config = {
   src: `./src/**/*.js`,
+  data: `./src/lib/*.json`,
   dist: `./dist`
 };
 
@@ -50,6 +51,12 @@ gulp.task(`babel`, () => {
     .pipe(gulp.dest(config.dist));
 });
 
+gulp.task(`data`, () => {
+  return gulp.src(config.data, {
+    base: `src`
+  })
+    .pipe(gulp.dest(config.dist));
+});
 
 gulp.task(`clean`, () => {
   return del(config.dist);
@@ -136,14 +143,19 @@ gulp.task(`build:release`, gulp.series(
 );
 
 
-gulp.task(`build`, gulp.series(`clean`, `babel`, `docs`));
+gulp.task(`build`, gulp.series(`clean`, `babel`, `docs`, `data`));
 
 gulp.task(`watch:js`, () => {
   gulp.watch(config.src, gulp.series(`babel`, `docs`));
 });
 
+gulp.task(`watch:data`, () => {
+  gulp.watch(config.data, gulp.series(`data`));
+});
+
 gulp.task(`watch`, gulp.parallel(
-  `watch:js`
+  `watch:js`,
+  `watch:data`
 ));
 
 gulp.task(`default`, gulp.series(`build`, `watch`));

@@ -1,0 +1,18 @@
+{
+  "tags": {
+    "allowUnknownTags": true,
+    "dictionaries": ["jsdoc", "closure"]
+  },
+  "plugins": [],
+  "templates": {
+    "cleverLinks": true,
+    "theme": "yeti",
+    "systemName": "GL=>GH Migration",
+    "copyright": "Copyright Mtech Access Limited",
+    "includeDate": false
+  },
+  "opts": {
+    "destination": "./docs/",
+    "private": true
+  }
+}
