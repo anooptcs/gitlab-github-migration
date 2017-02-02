@@ -1,0 +1,17 @@
+{
+  "gitlab":{
+    "company":"{{company}}",
+    "token":"{{token}}",
+    "user":"{{email}",
+    "password":"{{password}}"
+  },
+  "github":{
+    "org": "{{org}}",
+    "user": "{{user}}",
+    "token": "{{token}}",
+    "password": "{{password}}"
+  },
+  "mapping":{
+    "gtlabser":"githubUser"
+  }
+}
