@@ -15,6 +15,7 @@ commander
   .version(version)
   .option(`-a, --all`, `migrate all know repos`)
   .option(`-D, --debug`, `enable debug messages`)
+  .option(`-i, --import [value]`, `import named repo from gitlab into github`)
   .option(`-l, --list`, `list know repos`)
   .option(`-p, --projects`, `list known remote projects`)
   .option(`-l, --list`, `list know repos`)
@@ -37,6 +38,8 @@ if (commander.debug) {
 
 if (commander.list) {
   migrate.list();
+} else if (commander.import) {
+  migrate.importer(commander.import);
 } else if (commander.projects) {
   migrate.projects();
 } else {
