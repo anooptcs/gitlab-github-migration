@@ -1,0 +1,27 @@
+{
+  "plugins": [
+    "esformatter-align",
+    "esformatter-braces",
+    "esformatter-eol-last",
+    "esformatter-jquery-chain",
+    "esformatter-literal-notation",
+    "esformatter-quote-props"
+  ],
+  "whiteSpace": {
+    "before": {
+      "ModuleSpecifierClosingBrace": 0,
+      "ObjectExpressionOpeningBrace": 1,
+      "ObjectExpressionClosingBrace": 0
+    },
+    "after": {
+      "ModuleSpecifierOpeningBrace": 0,
+      "ObjectExpressionOpeningBrace": 0,
+      "ObjectExpressionClosingBrace": -1
+    }
+  },
+  "align": {
+    "ObjectExpression": 0,
+    "TernaryExpression": 1,
+    "OrExpression": 1
+  }
+}

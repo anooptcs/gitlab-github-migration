@@ -1,0 +1,24 @@
+{
+  "parserOptions":{
+    "sourceType": "module"
+  },
+  "extends": "google",
+  "env": {
+    "node": true,
+    "es6": true
+  },
+  "rules": {
+    "max-len": ["warn", 250, 2],
+    "complexity": [2, 10],
+    "spaced-comment": 0,
+    "no-multi-spaces": 0,
+    "radix": [2, "as-needed"],
+    "valid-jsdoc": [2, {
+      "requireReturn": false,
+      "requireReturnDescription": false
+    }],
+    "quotes": [2, "backtick"],
+    "arrow-parens": ["error", "as-needed"],
+    "comma-dangle": ["error", "never"]
+  }
+}

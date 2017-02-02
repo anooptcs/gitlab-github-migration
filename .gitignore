@@ -1,0 +1,8 @@
+node_modules
+npm-debug.log
+grinder.log
+dist
+docs/
+.DS_Store
+gutted/
+~*.xls*

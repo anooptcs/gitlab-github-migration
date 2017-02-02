@@ -14,3 +14,5 @@
   - milestones
   - issues
   - wiki
+
+- personal access token: oDwn-_gpW6FYyex4KkkB
