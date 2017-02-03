@@ -41,13 +41,14 @@ let gitHubRepos;
 function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
-function MyError(message) {
-  this.name    = 'MyError';
+function NoLabelsError(message) {
+  this.name    = 'NoLabelsError';
   this.message = message || 'Default Message';
   this.stack   = (new Error()).stack;
 }
-MyError.prototype             = Object.create(Error.prototype);
-MyError.prototype.constructor = MyError;
+NoLabelsError.prototype             = Object.create(Error.prototype);
+NoLabelsError.prototype.constructor = NoLabelsError;
+
 function _labels(ghRepo, glRepo) {
   log.debug(`_labels: ${ghRepo.name}`);
   return new Promise((resolve, reject) => {
@@ -69,7 +70,7 @@ function _labels(ghRepo, glRepo) {
           return request(ghOpts);
         } else {
           log.debug(`no gl labels, ${ghRepo.name} resolve me!`);
-          throw new MyError(`no labels`);
+          throw new NoLabelsError(`no labels`);
         }
       })
       .then(response => {
@@ -119,7 +120,7 @@ function _labels(ghRepo, glRepo) {
         }
       })
       .catch(err => {
-        if (err instanceof MyError) {
+        if (err instanceof NoLabelsError) {
           log.warn(`no labels for git lab repo ${ghRepo.name}`)
           resolve();
         } else {
