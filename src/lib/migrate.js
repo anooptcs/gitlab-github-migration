@@ -42,9 +42,109 @@ function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-function _migrate(project) {
+function _labels(ghRepo, glRepo) {
+  log.debug(`_labels: ${ghRepo.name}`);
   return new Promise((resolve, reject) => {
-    resolve();
+    let glLabels;
+    let ghLabels;
+    let glOpts    = _clone(gitLabOpts);
+    let ghOpts    = _clone(gitHubOpts);
+    let ghBaseURL = ghOpts.url;
+    let glBaseURL = glOpts.url;
+    glOpts.url += `projects/${glRepo.id}/labels`;
+    ghOpts.url += `repos/${settings.github.org}/${ghRepo.name}/labels`;
+
+    request(glOpts)
+      .then(response => {
+        if (response.length) {
+          glLabels = response;
+          //log.debug(`-> have gl labels ${ghRepo.name}`);
+          //console.log(ghOpts);
+          return request(ghOpts);
+        } else {
+          resolve(`no labels`);
+        }
+      })
+      .then(response => {
+        ghLabels = response;
+        let newLabels = [];
+
+        //log.debug(`-] have gh labels ${ghRepo.name}`);
+        // now have all the labels for this repo.
+        for (let glLabel of glLabels) {
+          //console.log(`gllbael:`, glLabel);
+          let found = ghLabels.find(element => {
+            //console.log(`ghlabel: `, element);
+            return element.name === glLabel.name;
+          });
+
+          ///  log.debug(`found: ${found}`);
+
+          if (!found) {
+            //log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
+            ghOpts.method = `POST`;
+            ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
+            ghOpts.body   = {
+              name: glLabel.name,
+              color: glLabel.color.replace(/\#/, ``)
+            };
+            console.log(ghOpts);
+            newLabels.push(
+              request(ghOpts)
+            );
+          }
+        }
+
+        if (newLabels.length) {
+          //log.debug(`process new labels`);
+          Promise.all(newLabels)
+            .then(() => {
+              //  log.debug(`labels added for ${ghRepo.name}`);
+              resolve(`labels added`);
+            })
+            .catch(err => {
+              log.error(`label add loop failed for ${ghRepo.name}`);
+              throw new Error(err);
+            })
+        } else {
+          //log.debug(`no labels to add to ${ghRepo.name}, skipping`);
+          resolve();
+        }
+      })
+      .catch(err => {
+        log.error(`labels fail `);
+        reject(err);
+      })
+  });
+}
+
+function _migrate(repo) {
+  //  - find corresponding glRepo
+  //   - get glLabels
+  //   - get ghLabels
+  //
+  //   - for each glLabel
+  //    - if glLabel not in ghLabels
+  //     - add ghLabel
+  return new Promise((resolve, reject) => {
+    log.info(`_migrate ${repo.name}`);
+
+    let glr = gitLabRepos.find(element => {
+      return element.name === repo.name;
+    });
+
+    if (!glr) {
+      resolve(`no corresponding repo found on gitlab, skipping...`);
+    } else {
+      _labels(repo, glr)
+        .then(() => {
+          resolve();
+        })
+        .catch(err => {
+          log.error(`_migrate ${repo.name} failed`);
+          reject(err);
+        });
+    }
   });
 }
 
@@ -322,13 +422,13 @@ export function remove(project) {
     });
 }
 
-export function migrate() {
+export function migrateAll() {
   let toMigrate = [];
   _fetch()
     .then(status => {
-      log.debug(`migrate fetch: ${status}`);
+      log.debug(`migrate all fetch: ${status}`);
       for (let repo of gitHubRepos) {
-        toMigrate.push(_migrate(repo.name));
+        toMigrate.push(_migrate(repo));
       }
 
       Promise.all(toMigrate)
@@ -336,11 +436,33 @@ export function migrate() {
           log.info(`migrate all complete`);
         })
         .catch(err => {
+          log.error(`migrate all: bang!`);
           throw new Error(err);
         });
 
     })
     .catch(err => {
+      log.error(`migrate all bang`);
+      log.error(err);
+    });
+}
+
+export function migrate(project) {
+  _fetch()
+    .then(status => {
+      log.debug(`migrate fetch: ${status}`);
+      let ghRepo = gitHubRepos.find(element => {
+        return element.name === project;
+      });
+
+      if (ghRepo) {
+        return _migrate(ghRepo);
+      } else {
+        throw new Error(`unknown repo ${project}`);
+      }
+    })
+    .catch(err => {
+      log.error(`migrate bang`);
       log.error(err);
     });
 }
