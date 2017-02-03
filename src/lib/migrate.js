@@ -3,11 +3,12 @@
 import log from '../lib/logger';
 import manifest from './manifest.json';
 import settings from '../../settings.json';
+import pkg from '../../package.json';
 
 import request from 'request-promise-native';
 import waitFor from 'p-wait-for';
 
-const gitlabOpts = {
+const gitLabOpts = {
   url: `https://gitlab.com/api/v3/`,
   headers: {
     "PRIVATE-TOKEN": settings.gitlab.token
@@ -15,16 +16,16 @@ const gitlabOpts = {
   json: true
 };
 
-const githubOpts = {
+const gitHubOpts = {
   url: `https://api.github.com/`,
   headers: {
-    "User-Agent": "ma-migrate",
+    "User-Agent": pkg.name,
     Authorization: `token ${settings.github.token}`
   },
-
   json: true
 };
 
+// cached know repos here.
 let gitLabRepos;
 let gitHubRepos;
 
@@ -38,30 +39,28 @@ function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export function importer(project) {
-  log.info(`Import repo: ${project}`);
-
-  _import(project)
-    .then(() => {
-      log.info(`imported ${project} succesfully`);
-    })
-    .catch(err => {
-      log.error(`import failed:`, err);
-    });
-}
-
+/**
+ * Import single repo form gitlab into github.
+ * <ul>
+ * <li>fetch known repos
+ * <li>check if project exists in gitlab, if false error and exit
+ * <li>check if project exists in github, if true error and exit
+ * <li>create repo on github
+ * <li>import from gitlab into github
+ * </ul>
+ * @method _import
+ * @param {string} project gitlab project name to import
+ * @return {Promise}
+ * @private
+ */
 function _import(project) {
-  let ghopts  = _clone(githubOpts);
+  let ghopts  = _clone(gitHubOpts);
   let baseURL = ghopts.url;
   let glr;
   let ghr;
   return new Promise((resolve, reject) => {
-
-    // check if repo exists on github
-    //  - create repo on github
-    // kick off import
     _fetch()
-      .then((status) => {
+      .then(status => {
         log.debug(`- fetch status: ${status}`);
         log.debug(`- test if gl has project ${project}`);
         glr = gitLabRepos.find(element => {
@@ -122,7 +121,7 @@ function _import(project) {
             if (res.status === `complete`) {
               return true;
             } else if (res.status === `error`) {
-              throw new Error(`import failed`, res.status_text)
+              throw new Error(`import failed`, res.status_text);
             }
             log.debug(`import progress: ${res.status}`);
             return false;
@@ -137,16 +136,22 @@ function _import(project) {
   });
 }
 
+/**
+ * Fetch and cache known repos.
+ * @method _fetch
+ * @return {Promise}
+ * @private
+ */
 function _fetch() {
   log.debug(`fetch known repos`);
   return new Promise((resolve, reject) => {
     if (gitLabRepos && gitHubRepos) {
       resolve(`already fetched`);
     } else {
-      getProjects()
+      _getRepos()
         .then(repos => {
           gitLabRepos = repos;
-          return getProjects(false);
+          return _getRepos(false);
         })
         .then(repos => {
           gitHubRepos = repos;
@@ -154,14 +159,21 @@ function _fetch() {
         })
         .catch(err => {
           reject(err);
-        })
+        });
     }
   });
 }
 
-function getProjects(isGitlab = true) {
+/**
+ * Get known repos for either gitlab or github
+ * @method _getRepos
+ * @param {Boolean} [isGitlab=true] if true, fetch from gitlab, else from github
+ * @return {Promise}
+ * @private
+ */
+function _getRepos(isGitlab = true) {
   return new Promise((resolve, reject) => {
-    let options = isGitlab ? _clone(gitlabOpts) : _clone(githubOpts);
+    let options = isGitlab ? _clone(gitLabOpts) : _clone(gitHubOpts);
     options.url += isGitlab ? `projects?per_page=100` : `orgs/${settings.github.org}/repos?per_page=100`;
 
     request(options)
@@ -174,23 +186,50 @@ function getProjects(isGitlab = true) {
   });
 }
 
+/**
+ * Import single project from gitlab into github.
+ * @method importer
+ * @see {@link _import}
+ * @param {string} project name of project to import
+ */
+export function importer(project) {
+  if (!project) {
+    log.error(`No project name passed!`);
+    return;
+  }
+
+  log.info(`Import repo: ${project}`);
+
+  _import(project)
+    .then(() => {
+      log.info(`imported ${project} succesfully`);
+    })
+    .catch(err => {
+      log.error(`import failed:`, err);
+    });
+}
+
+/**
+ * List known gitlab and github repos
+ * @method projects
+ */
 export function projects() {
-  getProjects()
-    .then(glr => {
-      for (let repo of glr) {
-        console.log(`gl repo ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
+  _fetch()
+    .then(status => {
+      log.debug(`repos fetched`);
+      log.info(`GitLab repos:`);
+      for (let repo of gitLabRepos) {
+        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
       }
       console.log(`---`);
-      return getProjects(false);
-    })
-    .then(ghr => {
-      for (let repo of ghr) {
-        console.log(`gh repo ${repo.id}:${repo.name}:${repo.description}`);
+      log.info(`GitHub repos:`);
+      for (let repo of gitHubRepos) {
+        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.url}`);
       }
-
-    }).catch(function(err) {
-    console.error(err);
-  });
+    })
+    .catch(function(err) {
+      log.error(err);
+    });
 }
 
 /**
