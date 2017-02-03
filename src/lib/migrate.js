@@ -41,7 +41,13 @@ let gitHubRepos;
 function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
-
+function MyError(message) {
+  this.name    = 'MyError';
+  this.message = message || 'Default Message';
+  this.stack   = (new Error()).stack;
+}
+MyError.prototype             = Object.create(Error.prototype);
+MyError.prototype.constructor = MyError;
 function _labels(ghRepo, glRepo) {
   log.debug(`_labels: ${ghRepo.name}`);
   return new Promise((resolve, reject) => {
@@ -56,20 +62,21 @@ function _labels(ghRepo, glRepo) {
 
     request(glOpts)
       .then(response => {
-        if (response.length) {
+        if (response && response.length) {
           glLabels = response;
-          //log.debug(`-> have gl labels ${ghRepo.name}`);
+          log.debug(`-> have gl labels ${ghRepo.name}`);
           //console.log(ghOpts);
           return request(ghOpts);
         } else {
-          resolve(`no labels`);
+          log.debug(`no gl labels, ${ghRepo.name} resolve me!`);
+          throw new MyError(`no labels`);
         }
       })
       .then(response => {
         ghLabels = response;
         let newLabels = [];
 
-        //log.debug(`-] have gh labels ${ghRepo.name}`);
+        log.debug(`-] have gh labels ${ghRepo.name}`);
         // now have all the labels for this repo.
         for (let glLabel of glLabels) {
           //console.log(`gllbael:`, glLabel);
@@ -78,17 +85,17 @@ function _labels(ghRepo, glRepo) {
             return element.name === glLabel.name;
           });
 
-          ///  log.debug(`found: ${found}`);
+          //  log.debug(`found: ${found}`);
 
           if (!found) {
-            //log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
+            log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
             ghOpts.method = `POST`;
             ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
             ghOpts.body   = {
               name: glLabel.name,
               color: glLabel.color.replace(/\#/, ``)
             };
-            console.log(ghOpts);
+            //  console.log(ghOpts);
             newLabels.push(
               request(ghOpts)
             );
@@ -96,10 +103,10 @@ function _labels(ghRepo, glRepo) {
         }
 
         if (newLabels.length) {
-          //log.debug(`process new labels`);
+          log.debug(`process new labels`);
           Promise.all(newLabels)
             .then(() => {
-              //  log.debug(`labels added for ${ghRepo.name}`);
+              log.debug(`labels added for ${ghRepo.name}`);
               resolve(`labels added`);
             })
             .catch(err => {
@@ -107,13 +114,18 @@ function _labels(ghRepo, glRepo) {
               throw new Error(err);
             })
         } else {
-          //log.debug(`no labels to add to ${ghRepo.name}, skipping`);
+          log.debug(`no labels to add to ${ghRepo.name}, skipping`);
           resolve();
         }
       })
       .catch(err => {
-        log.error(`labels fail `);
-        reject(err);
+        if (err instanceof MyError) {
+          log.warn(`no labels for git lab repo ${ghRepo.name}`)
+          resolve();
+        } else {
+          log.error(`labels fail ${ghRepo.name}`);
+          reject(err);
+        }
       })
   });
 }
