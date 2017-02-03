@@ -6,6 +6,7 @@ import settings from '../../settings.json';
 import pkg from '../../package.json';
 
 import request from 'request-promise-native';
+import moment from 'moment';
 import waitFor from 'p-wait-for';
 
 const gitLabOpts = {
@@ -20,7 +21,9 @@ const gitHubOpts = {
   url: `https://api.github.com/`,
   headers: {
     "User-Agent": pkg.name,
-    Authorization: `token ${settings.github.token}`
+    Authorization: `token ${settings.github.token}`,
+    Accept: `application/vnd.github.v3+json`,
+    "Cache-Control": `no-cache,no-store`
   },
   json: true
 };
@@ -37,6 +40,12 @@ let gitHubRepos;
  */
 function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function _migrate(project) {
+  return new Promise((resolve, reject) => {
+    resolve();
+  });
 }
 
 /**
@@ -196,7 +205,7 @@ function _fetch() {
 function _getRepos(isGitlab = true) {
   return new Promise((resolve, reject) => {
     let options = isGitlab ? _clone(gitLabOpts) : _clone(gitHubOpts);
-    options.url += isGitlab ? `projects?per_page=100` : `orgs/${settings.github.org}/repos?per_page=100`;
+    options.url += isGitlab ? `projects?per_page=100` : `orgs/${settings.github.org}/repos?per_page=100&now=${moment().unix()}`;
 
     request(options)
       .then(repos => {
@@ -298,4 +307,40 @@ export function importAll() {
  */
 export function list() {
   console.log(manifest.apps);
+}
+
+export function remove(project) {
+  let options = _clone(gitHubOpts);
+  options.method = `DELETE`;
+  options.url += `repos/${settings.github.org}/${project}`
+  request(options)
+    .then(response => {
+      log.info(response);
+    })
+    .catch(err => {
+      log.error(err);
+    });
+}
+
+export function migrate() {
+  let toMigrate = [];
+  _fetch()
+    .then(status => {
+      log.debug(`migrate fetch: ${status}`);
+      for (let repo of gitHubRepos) {
+        toMigrate.push(_migrate(repo.name));
+      }
+
+      Promise.all(toMigrate)
+        .then(() => {
+          log.info(`migrate all complete`);
+        })
+        .catch(err => {
+          throw new Error(err);
+        });
+
+    })
+    .catch(err => {
+      log.error(err);
+    });
 }
