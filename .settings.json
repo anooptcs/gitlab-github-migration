@@ -12,6 +12,6 @@
     "password": "{{password}}"
   },
   "mapping":{
-    "gtlabser":"githubUser"
+    "user@gitlab.com":"user@github.com"
   }
 }

@@ -120,6 +120,8 @@ function _import(project) {
           .then(res => {
             if (res.status === `complete`) {
               return true;
+            // } else if (res.status === `importing`) {
+            //   _mapAuthors(project);
             } else if (res.status === `error`) {
               throw new Error(`import failed`, res.status_text);
             }
@@ -133,6 +135,26 @@ function _import(project) {
       .catch(function(err) {
         reject(err);
       });
+  });
+}
+
+function _mapAuthors(project) {
+  log.info(`map import authors`);
+  let options = _clone(gitHubOpts);
+  let url     = options.url;
+  options.url               = url + `repos/${settings.github.org}/${project}/import/authors`
+  options.body              = null;
+  options.headers[`Accept`] = `application/vnd.github.barred-rock-preview`;
+  console.log(options);
+  return new Promise((resolve, reject) => {
+    request(options)
+      .then(response => {
+        console.log(response);
+        resolve();
+      })
+      .catch(err => {
+        reject(err);
+      })
   });
 }
 
@@ -208,7 +230,22 @@ export function importer(project) {
       log.error(`import failed:`, err);
     });
 }
+/**
+ * Import single project from gitlab into github.
+ * @method authors
+ * @see {@link _import}
+ */
+export function authors() {
+  log.info(`Add email address for users`);
 
+  _mapAuthors()
+    .then(() => {
+      log.info(`mapped`);
+    })
+    .catch(err => {
+      log.error(`mapping failed:`, err);
+    });
+}
 /**
  * List known gitlab and github repos
  * @method projects
@@ -217,17 +254,40 @@ export function projects() {
   _fetch()
     .then(status => {
       log.debug(`repos fetched`);
-      log.info(`GitLab repos:`);
+      log.info(`GitLab repos (${gitLabRepos.length}):`);
       for (let repo of gitLabRepos) {
         console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
       }
       console.log(`---`);
-      log.info(`GitHub repos:`);
+      log.info(`GitHub repos (${gitHubRepos.length}):`);
       for (let repo of gitHubRepos) {
         console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.url}`);
       }
     })
-    .catch(function(err) {
+    .catch(err => {
+      log.error(err);
+    });
+}
+
+export function importAll() {
+  let toImport = [];
+  _fetch()
+    .then(status => {
+      log.debug(`importAll fetch: ${status}`);
+      for (let repo of gitLabRepos) {
+        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
+        toImport.push(_import(repo.name));
+      }
+
+      Promise.all(toImport)
+        .then(() => {
+          log.info(`import all complete`);
+        })
+        .catch(err => {
+          throw new Error(err);
+        });
+    })
+    .catch(err => {
       log.error(err);
     });
 }

@@ -13,12 +13,13 @@ log.info(`Gitlab to GitHub migration tool  %s!`, version);
 
 commander
   .version(version)
-  .option(`-a, --all`, `migrate all know repos`)
+  .option(`-A, --all`, `migrate all know repos`)
   .option(`-D, --debug`, `enable debug messages`)
   .option(`-i, --import [value]`, `import named repo from gitlab into github`)
   .option(`-l, --list`, `list know repos`)
   .option(`-p, --projects`, `list known remote projects`)
   .option(`-l, --list`, `list know repos`)
+  .option(`-a, --authors [value]`, `map authors`)
   .option(`-r, --repo [value]`, `migrate specific repo`);
 
 
@@ -40,6 +41,10 @@ if (commander.list) {
   migrate.list();
 } else if (commander.import) {
   migrate.importer(commander.import);
+} else if (commander.authors) {
+  migrate.authors(commander.authors);
+} else if (commander.all) {
+  migrate.importAll();
 } else if (commander.projects) {
   migrate.projects();
 } else {
