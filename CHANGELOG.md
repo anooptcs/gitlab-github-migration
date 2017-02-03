@@ -1,5 +1,20 @@
+<a name="0.2.1"></a>
+## [0.2.1](https://github.com/mtechaccess/migrate/compare/0.2.0...v0.2.1) (2017-02-03)
+
+
+### feat
+
+* (migrate): import gitlab labels,only if they are missing from github ([75a2116ce8d83c2c907b3c6b72cb738bce6d16a7](https://github.com/mtechaccess/migrate/commit/75a2116ce8d83c2c907b3c6b72cb738bce6d16a7))
+* feat: (migrate): import labels handle missing gitlab labels properly (closes #1) ([3b05f5f6891a3032f686a455f8b38fac45980949](https://github.com/mtechaccess/migrate/commit/3b05f5f6891a3032f686a455f8b38fac45980949)), closes [#1](https://github.com/mtechaccess/migrate/issues/1)
+
+### update
+
+* (migrate): new `remove` mode, stubbed migrate for issues/labels/milestones and comments ([9b8e8d78a4bfecc96dee69225945bdbc805a960c](https://github.com/mtechaccess/migrate/commit/9b8e8d78a4bfecc96dee69225945bdbc805a960c))
+
+
+
 <a name="0.2.0"></a>
-# 0.2.0 (2017-02-03)
+# [0.2.0](https://github.com/mtechaccess/migrate/compare/522779922502e3206fa695d91ecf47e5d245d5d3...0.2.0) (2017-02-03)
 
 
 ### deps
