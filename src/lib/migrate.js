@@ -131,6 +131,29 @@ function _labels(ghRepo, glRepo) {
   });
 }
 
+function _milestones(ghRepo, glRepo) {
+  log.debug(`_milestones: ${ghRepo.name}`);
+  return new Promise((resolve, reject) => {
+    resolve();
+  })
+}
+
+function _issues(ghRepo, glRepo) {
+  log.debug(`_issues: ${ghRepo.name}`);
+  return new Promise((resolve, reject) => {
+    // get issues
+    // for each issue, get comments
+    resolve();
+  })
+}
+
+function _comments(ghRepo, glRepo) {
+  log.debug(`_comments: ${ghRepo.name}`);
+  return new Promise((resolve, reject) => {
+    resolve();
+  })
+}
+
 function _migrate(repo) {
   //  - find corresponding glRepo
   //   - get glLabels
@@ -150,6 +173,14 @@ function _migrate(repo) {
       resolve(`no corresponding repo found on gitlab, skipping...`);
     } else {
       _labels(repo, glr)
+        .then(msg => {
+          log.debug(msg);
+          return _milestones(repo, glr);
+        })
+        .then(msg => {
+          log.debug(msg);
+          return _issues(repo, glr);
+        })
         .then(() => {
           resolve();
         })
