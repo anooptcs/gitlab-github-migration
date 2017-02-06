@@ -276,7 +276,8 @@ function _createIssueAndComments(ghRepo, issue, milestones) {
         // edit issue to match current gitlab state
         options.url    = baseURL + `repos/${settings.github.org}/${ghRepo.name}/issues/${response.number}`;
         options.method = `PATCH`;
-        options.body   = {
+        // map gl `active` to gh `open`
+        options.body = {
           state: issue.state === `active` ? `open` : `closed`
         };
         return request(options);
@@ -318,7 +319,7 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
       .then(response => {
         glIssues = response;
         let newIssues = [];
-        console.log(glIssues);
+        //console.log(glIssues);
         for (let issue of glIssues) {
           newIssues.push(_createIssueAndComments(ghRepo, issue, milestones));
         }
@@ -360,7 +361,7 @@ function _createComment(ghRepo, issue, comment) {
     request(options)
       .then(response => {
         response.gitLabId = comment.id;
-        console.log(`new comment`, response);
+        //console.log(`new comment`, response);
         log.debug(`new comment ${response.id} created`);
         resolve(response);
       })
