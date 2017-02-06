@@ -160,10 +160,10 @@ function _createMilestone(ghRepo, ms) {
   options.body   = {
     title: ms.title,
     description: ms.description,
-    state: ms.state
+    state: ms.state === `active` ? `open` : `closed`
   };
   if (ms.due_date) {
-    options.body.due_on = ms.due_date;
+    options.body.due_on = moment(ms.due_date).toISOString();
   }
 
   return new Promise((resolve, reject) => {
