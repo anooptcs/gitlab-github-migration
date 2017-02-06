@@ -41,14 +41,29 @@ let gitHubRepos;
 function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
+
+
+/**
+ * No LabelsError
+ * @method NoLabelsError
+ * @param {string=} message error message
+ */
 function NoLabelsError(message) {
-  this.name    = 'NoLabelsError';
-  this.message = message || 'Default Message';
+  this.name    = `NoLabelsError`;
+  this.message = message || `Default Message`;
   this.stack   = (new Error()).stack;
 }
 NoLabelsError.prototype             = Object.create(Error.prototype);
 NoLabelsError.prototype.constructor = NoLabelsError;
 
+/**
+ * Get gitlab labesl for repo, recreate for github repo.
+ * @method _labels
+ * @param {Object} ghRepo github repo
+ * @param {Object} glRepo gitlab repo
+ * @return {Promise}
+ * @private
+ */
 function _labels(ghRepo, glRepo) {
   log.debug(`_labels: ${ghRepo.name}`);
   return new Promise((resolve, reject) => {
@@ -57,7 +72,6 @@ function _labels(ghRepo, glRepo) {
     let glOpts    = _clone(gitLabOpts);
     let ghOpts    = _clone(gitHubOpts);
     let ghBaseURL = ghOpts.url;
-    let glBaseURL = glOpts.url;
     glOpts.url += `projects/${glRepo.id}/labels`;
     ghOpts.url += `repos/${settings.github.org}/${ghRepo.name}/labels`;
 
@@ -113,7 +127,7 @@ function _labels(ghRepo, glRepo) {
             .catch(err => {
               log.error(`label add loop failed for ${ghRepo.name}`);
               throw new Error(err);
-            })
+            });
         } else {
           log.debug(`no labels to add to ${ghRepo.name}, skipping`);
           resolve();
@@ -121,39 +135,285 @@ function _labels(ghRepo, glRepo) {
       })
       .catch(err => {
         if (err instanceof NoLabelsError) {
-          log.warn(`no labels for git lab repo ${ghRepo.name}`)
+          log.warn(`no labels for git lab repo ${ghRepo.name}`);
           resolve();
         } else {
           log.error(`labels fail ${ghRepo.name}`);
           reject(err);
         }
-      })
+      });
   });
 }
 
-function _milestones(ghRepo, glRepo) {
-  log.debug(`_milestones: ${ghRepo.name}`);
+/**
+ * Create milestone for github repo, match details to gitlab milestone
+ * @method _createMilestone
+ * @param {Object} ghRepo target repo
+ * @param {Object} ms milestone to create
+ * @return {Promise}
+ * @private
+ */
+function _createMilestone(ghRepo, ms) {
+  let options = _clone(gitHubOpts);
+  options.url += `repos/${settings.github.org}/${ghRepo.name}/milestones`;
+  options.method = `POST`;
+  options.body   = {
+    title: ms.title,
+    description: ms.description,
+    state: ms.state
+  };
+  if (ms.due_date) {
+    options.body.due_on = ms.due_date;
+  }
+
   return new Promise((resolve, reject) => {
-    resolve();
-  })
+    request(options)
+      .then(response => {
+        response.gitLabId = ms.id;
+        resolve(ms);
+      })
+      .catch(err => {
+        log.error(`createMilestone failed`);
+        reject(err);
+      });
+  });
 }
 
-function _issues(ghRepo, glRepo) {
-  log.debug(`_issues: ${ghRepo.name}`);
+/**
+ * Create all milestones in github for gitlab repo
+ * @method _milestones
+ * @param {Object} ghRepo github repo
+ * @param {Object} glRepo gitlab repo
+ * @return {Promise}
+ * @private
+ */
+function _milestones(ghRepo, glRepo) {
   return new Promise((resolve, reject) => {
+    log.debug(`_milestones: ${ghRepo.name}`);
+    let options = _clone(gitLabOpts);
+    options.url += `projects/${glRepo.id}/milestones`;
+    let glMilestones;
+    // get milestones for glr
+    // for each MS
+    // - create new gh MS
+    // - map response id to gl MS
+    // hand mapped ms to resolve
+    request(options)
+      .then(response => {
+        glMilestones = response;
+        let newMs = [];
+        //console.log(glMilestones);
+        for (let ms of glMilestones) {
+          newMs.push(_createMilestone(ghRepo, ms));
+        }
+
+        Promise.all(newMs)
+          .then(results => {
+            resolve(results);
+          })
+          .catch(err => {
+            throw new Error(err);
+          });
+      })
+      .catch(err => {
+        log.error(err);
+        reject(err);
+      });
+  });
+}
+/**
+ * Map from gitlab user name to github
+ * @method _mapUser
+ * @param {string} user gitlab user name
+ * @return {string} github user name
+ * @private
+ */
+function _mapUser(user) {
+  let ghUser = null;
+  if (user) {
+    ghUser = settings.mapping[user];
+  }
+  return ghUser || user;
+}
+
+/**
+ * Create issue and comments for specific repo
+ * @method _createIssue
+ * @param {Object} ghRepo target repo
+ * @param {Object} issue gitlab issue
+ * @param {Array.<object>} milestones known milestones for project
+ * @return {Promise}
+ * @private
+ */
+function _createIssueAndComments(ghRepo, issue, milestones) {
+  log.debug(`_createIssue`);
+  //console.log(issue, milestones);
+  return new Promise((resolve, reject) => {
+    let options = _clone(gitHubOpts);
+    let baseURL = options.url;
+    options.url += `repos/${settings.github.org}/${ghRepo.name}/issues`;
+    options.method = `POST`;
+    options.body   = {
+      title: issue.title,
+      body: issue.body,
+      labels: issue.labels,
+      assignees: issue.assignee ? [_mapUser(issue.assignee.username)] : []
+    };
+
+    // if issue was part of milestone, get corresponding github milestone number
+    if (issue.milestone) {
+      let ms = milestones.find(element => {
+        return element.gitLabId === issue.milestone.id;
+      });
+      if (ms) {
+        options.milestone = ms.number;
+      }
+    }
+
+    request(options)
+      .then(response => {
+        //console.log(`new issue`, response);
+        // edit issue to match current gitlab state
+        options.url    = baseURL + `repos/${settings.github.org}/${ghRepo.name}/issues/${response.number}`;
+        options.method = `PATCH`;
+        options.body   = {
+          state: issue.state === `active` ? `open` : `closed`
+        };
+        return request(options);
+      })
+      .then(response => {
+        response.gitLabId = issue.id;
+        log.debug(`new issue ${response.id} created`);
+        return _comments(ghRepo, response);
+      })
+      .then(response => {
+        resolve(response);
+      })
+      .catch(err => {
+        log.error(`_createIssue failed`);
+        reject(err);
+      });
+  });
+}
+
+/**
+ * Hnalde creationg of issues and comments for this repo
+ * @method _issuesAndComments
+ * @param {Object} ghRepo target github repo
+ * @param {Object} glRepo source gitlab repo
+ * @param {Object} milestones known milestones for project
+ * @return {Promise}
+ */
+function _issuesAndComments(ghRepo, glRepo, milestones) {
+  return new Promise((resolve, reject) => {
+    log.debug(`_issues: ${ghRepo.name}`);
+    let options = _clone(gitLabOpts);
+    options.url += `projects/${glRepo.id}/issues`;
+    let glIssues;
     // get issues
     // for each issue, get comments
-    resolve();
-  })
+    // - create new issue, map MS if set
+    // - on response, create new comment(s)
+    request(options)
+      .then(response => {
+        glIssues = response;
+        let newIssues = [];
+        console.log(glIssues);
+        for (let issue of glIssues) {
+          newIssues.push(_createIssueAndComments(ghRepo, issue, milestones));
+        }
+
+        Promise.all(newIssues)
+          .then(results => {
+            resolve(results);
+          })
+          .catch(err => {
+            throw new Error(err);
+          });
+      })
+      .catch(err => {
+        log.error(`_issues failed`);
+        reject(err);
+      });
+  });
 }
 
-function _comments(ghRepo, glRepo) {
-  log.debug(`_comments: ${ghRepo.name}`);
+/**
+ * Create comment on github issue from gitlab source
+ * @method _createComment
+ * @param {Object} ghRepo target repo
+ * @param {Object} issue github issue to comment on
+ * @param {Object} comment new comment
+ * @return {Promise}
+ * @private
+ */
+function _createComment(ghRepo, issue, comment) {
   return new Promise((resolve, reject) => {
-    resolve();
-  })
+    log.debug(`_createComment`);
+    let options = _clone(gitHubOpts);
+    options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${issue.number}/comments`;
+    options.method = `POST`;
+    options.body   = {
+      body: comment.body
+    };
+
+    request(options)
+      .then(response => {
+        response.gitLabId = comment.id;
+        console.log(`new comment`, response);
+        log.debug(`new comment ${response.id} created`);
+        resolve(response);
+      })
+      .catch(err => {
+        log.error(`_createComment failed`);
+        reject(err);
+      });
+  });
 }
 
+/**
+ * Handle creation of comments for target repo
+ * @method _comments
+ * @param {Object} ghRepo targetrepo
+ * @param {Object} issue github issue
+ * @return {Promise}
+ * @private
+ */
+function _comments(ghRepo, issue) {
+  return new Promise((resolve, reject) => {
+    log.debug(`_comments: ${ghRepo.name}`);
+    let options = _clone(gitLabOpts);
+    options.url += `projects/${ghRepo.gitLabId}/issues/${issue.gitLabId}/notes`;
+
+    request(options)
+      .then(response => {
+        let newComments = [];
+        for (let comment of response) {
+          newComments.push(_createComment(ghRepo, issue, comment));
+        }
+
+        Promise.all(newComments)
+          .then(results => {
+            resolve(results);
+          })
+          .catch(err => {
+            throw new Error(err);
+          });
+      })
+      .catch(err => {
+        log.error(`_comments failed:`, err);
+        reject(err);
+      });
+  });
+}
+
+/**
+ * Migrate labels, milestones, issues and comments from gitlab to github for this repo.
+ * @method _migrate
+ * @param {object} repo github repo
+ * @return {Promise}
+ * @private
+ */
 function _migrate(repo) {
   //  - find corresponding glRepo
   //   - get glLabels
@@ -172,17 +432,18 @@ function _migrate(repo) {
     if (!glr) {
       resolve(`no corresponding repo found on gitlab, skipping...`);
     } else {
+      repo.gitLabId = glr.id;
       _labels(repo, glr)
         .then(msg => {
           log.debug(msg);
           return _milestones(repo, glr);
         })
-        .then(msg => {
-          log.debug(msg);
-          return _issues(repo, glr);
+        .then(newMs => {
+          log.debug(newMs);
+          return _issuesAndComments(repo, glr, newMs);
         })
         .then(() => {
-          resolve();
+          resolve(`migration of ${repo.name} complete`);
         })
         .catch(err => {
           log.error(`_migrate ${repo.name} failed`);
@@ -291,11 +552,18 @@ function _import(project) {
   });
 }
 
+/**
+ * Failed imprt authors :(
+ * @method _mapAuthors
+ * @param {object} project [description]
+ * @return {Promise} [description]
+ * @private
+ */
 function _mapAuthors(project) {
   log.info(`map import authors`);
   let options = _clone(gitHubOpts);
   let url     = options.url;
-  options.url               = url + `repos/${settings.github.org}/${project}/import/authors`
+  options.url               = url + `repos/${settings.github.org}/${project}/import/authors`;
   options.body              = null;
   options.headers[`Accept`] = `application/vnd.github.barred-rock-preview`;
   console.log(options);
@@ -307,7 +575,7 @@ function _mapAuthors(project) {
       })
       .catch(err => {
         reject(err);
-      })
+      });
   });
 }
 
@@ -422,6 +690,10 @@ export function projects() {
     });
 }
 
+/**
+ * Import all gitlab repos to github
+ * @method importAll
+ */
 export function importAll() {
   let toImport = [];
   _fetch()
@@ -453,10 +725,15 @@ export function list() {
   console.log(manifest.apps);
 }
 
+/**
+ * Remove named repo from github
+ * @method remove
+ * @param {string} project to remove
+ */
 export function remove(project) {
   let options = _clone(gitHubOpts);
   options.method = `DELETE`;
-  options.url += `repos/${settings.github.org}/${project}`
+  options.url += `repos/${settings.github.org}/${project}`;
   request(options)
     .then(response => {
       log.info(response);
@@ -466,6 +743,11 @@ export function remove(project) {
     });
 }
 
+/**
+ * Migrate all known github projects from gitlab.
+ * Milestones, labels, issues and comments
+ * @method migrateAll
+ */
 export function migrateAll() {
   let toMigrate = [];
   _fetch()
@@ -483,7 +765,6 @@ export function migrateAll() {
           log.error(`migrate all: bang!`);
           throw new Error(err);
         });
-
     })
     .catch(err => {
       log.error(`migrate all bang`);
@@ -491,6 +772,11 @@ export function migrateAll() {
     });
 }
 
+/**
+ * Migrate labels, milestones, issues and comments for specified repo from gitlab into github.
+ * @method migrate
+ * @param {string} project to migrate
+ */
 export function migrate(project) {
   _fetch()
     .then(status => {
