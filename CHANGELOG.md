@@ -1,5 +1,21 @@
+<a name="0.2.2"></a>
+## [0.2.2](https://github.com/mtechaccess/migrate/compare/0.2.1...v0.2.2) (2017-02-06)
+
+
+### feat
+
+* feat: (migrate): comments and issues (closes #3) ([380a69f485dcd5090db955977cc4624836510fb1](https://github.com/mtechaccess/migrate/commit/380a69f485dcd5090db955977cc4624836510fb1)), closes [#3](https://github.com/mtechaccess/migrate/issues/3)
+* feat: (migrate): import milestones, issues and comments. (closes #2, #3) ([8c5d502ff0e868f2f01025e4a866db9ec537fb6b](https://github.com/mtechaccess/migrate/commit/8c5d502ff0e868f2f01025e4a866db9ec537fb6b)), closes [#2](https://github.com/mtechaccess/migrate/issues/2) [#3](https://github.com/mtechaccess/migrate/issues/3)
+* feat: (migrate): stub code for milesones/issues/comments (refs #2,#3) ([db29622b184c741f1797709a502e635697380aa7](https://github.com/mtechaccess/migrate/commit/db29622b184c741f1797709a502e635697380aa7))
+
+### update
+
+* (migrate): refactor error for missing gl labels ([eb3c6d3c23676002fa5ab96a3c3cb8cd062c71cc](https://github.com/mtechaccess/migrate/commit/eb3c6d3c23676002fa5ab96a3c3cb8cd062c71cc))
+
+
+
 <a name="0.2.1"></a>
-## [0.2.1](https://github.com/mtechaccess/migrate/compare/0.2.0...v0.2.1) (2017-02-03)
+## [0.2.1](https://github.com/mtechaccess/migrate/compare/0.2.0...0.2.1) (2017-02-03)
 
 
 ### feat
