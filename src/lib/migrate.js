@@ -69,9 +69,9 @@ NoLabelsError.prototype.constructor = NoLabelsError;
  * @return {Promise}
  * @private
  */
-function _labels(ghRepo, glRepo) {
-  log.debug(`_labels: ${ghRepo.name}`);
-  return new Promise((resolve, reject) => {
+async function _labels(ghRepo, glRepo) {
+  try {
+    log.debug(`_labels: ${ghRepo.name}`);
     let glLabels;
     let ghLabels;
     const glOpts    = _clone(gitLabOpts);
@@ -80,73 +80,104 @@ function _labels(ghRepo, glRepo) {
     glOpts.url += `projects/${glRepo.id}/labels`;
     ghOpts.url += `repos/${settings.github.org}/${ghRepo.name}/labels`;
 
-    request(glOpts)
-      .then(response => {
-        if (response && response.length) {
-          glLabels = response;
-          log.debug(`-> have gl labels ${ghRepo.name}`);
-          //console.log(ghOpts);
-          return request(ghOpts);
-        }
-        log.debug(`no gl labels, ${ghRepo.name} resolve me!`);
-        throw new NoLabelsError(`no labels`);
-      })
-      .then(response => {
-        ghLabels = response;
-        const newLabels = [];
+    const response = await request(glOpts);
 
-        log.debug(`-] have gh labels ${ghRepo.name}`);
-        // now have all the labels for this repo.
-        for (const glLabel of glLabels) {
-          //console.log(`gllbael:`, glLabel);
-          const found = ghLabels.find(element => {
-            //console.log(`ghlabel: `, element);
-            return element.name === glLabel.name;
-          });
+    if (response && response.length) {
+      glLabels = response;
+      log.debug(`-> have gl labels ${ghRepo.name}`);
+      //console.log(ghOpts);
+      ghLabels = await request(ghOpts);
+      const newLabels = [];
 
-          //  log.debug(`found: ${found}`);
+      log.debug(`-] have gh labels ${ghRepo.name}`);
+      // now have all the labels for this repo.
+      for (const glLabel of glLabels) {
+        //console.log(`gllbael:`, glLabel);
+        const found = ghLabels.find(element => {
+          //console.log(`ghlabel: `, element);
+          return element.name === glLabel.name;
+        });
 
-          if (!found) {
-            log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
-            ghOpts.method = `POST`;
-            ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
-            ghOpts.body   = {
-              name: glLabel.name,
-              color: glLabel.color.replace(/\#/, ``)
-            };
-            //  console.log(ghOpts);
-            newLabels.push(
-              request(ghOpts)
-            );
-          }
-        }
+        //  log.debug(`found: ${found}`);
 
-        if (newLabels.length) {
-          log.debug(`process new labels`);
-          Promise.all(newLabels)
-            .then(() => {
-              log.debug(`labels added for ${ghRepo.name}`);
-              resolve(`labels added`);
-            })
-            .catch(err => {
-              log.error(`label add loop failed for ${ghRepo.name}`);
-              throw new Error(err);
-            });
-        } else {
-          log.debug(`no labels to add to ${ghRepo.name}, skipping`);
-          resolve();
+        if (!found) {
+          log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
+          ghOpts.method = `POST`;
+          ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
+          ghOpts.body   = {
+            name: glLabel.name,
+            color: glLabel.color.replace(/\#/, ``)
+          };
+          //  console.log(ghOpts);
+          newLabels.push(await request(ghOpts));
         }
-      })
-      .catch(err => {
-        if (err instanceof NoLabelsError) {
-          log.warn(`no labels for git lab repo ${ghRepo.name}`);
-          resolve();
-        } else {
-          log.error(`labels fail ${ghRepo.name}`);
-          reject(err);
-        }
-      });
-  });
+      }
+      log.debug(`labels added for ${ghRepo.name}`);
+      return newLabels;
+    } else {
+      log.debug(`no labels to add to ${ghRepo.name}, skipping`);
+      return false;
+    }
+  } catch (err) {
+    log.error(`_labels failed for ${ghRepo.name}`);
+    throw err;
+  }
+
+// .then(response => {
+//   ghLabels = response;
+//   const newLabels = [];
+//
+//   log.debug(`-] have gh labels ${ghRepo.name}`);
+//   // now have all the labels for this repo.
+//   for (const glLabel of glLabels) {
+//     //console.log(`gllbael:`, glLabel);
+//     const found = ghLabels.find(element => {
+//       //console.log(`ghlabel: `, element);
+//       return element.name === glLabel.name;
+//     });
+//
+//     //  log.debug(`found: ${found}`);
+//
+//     if (!found) {
+//       log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
+//       ghOpts.method = `POST`;
+//       ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
+//       ghOpts.body   = {
+//         name: glLabel.name,
+//         color: glLabel.color.replace(/\#/, ``)
+//       };
+//       //  console.log(ghOpts);
+//       newLabels.push(
+//         request(ghOpts)
+//       );
+//     }
+//   }
+//
+//   if (newLabels.length) {
+//     log.debug(`process new labels`);
+//     Promise.all(newLabels)
+//       .then(() => {
+//         log.debug(`labels added for ${ghRepo.name}`);
+//         resolve(`labels added`);
+//       })
+//       .catch(err => {
+//         log.error(`label add loop failed for ${ghRepo.name}`);
+//         throw new Error(err);
+//       });
+//   } else {
+//     log.debug(`no labels to add to ${ghRepo.name}, skipping`);
+//     resolve();
+//   }
+// })
+// .catch(err => {
+//   if (err instanceof NoLabelsError) {
+//     log.warn(`no labels for git lab repo ${ghRepo.name}`);
+//     resolve();
+//   } else {
+//     log.error(`labels fail ${ghRepo.name}`);
+//     reject(err);
+//   }
+// });
 }
 
 /**
@@ -215,32 +246,6 @@ async function _milestones(ghRepo, glRepo) {
     log.error(`_milestones failed`);
     throw err;
   }
-//   //return new Promise((resolve, reject) => {
-//   request(options)
-//     .then(response => {
-//       glMilestones = response;
-//       glMilestones.sort((a, b) => {
-//         return a.iid - b.iid;
-//       });
-//       const newMs = [];
-//       //console.log(`sorted milestones:`, glMilestones);
-//       for (const ms of glMilestones) {
-//         newMs.push(_createMilestone(ghRepo, ms));
-//       }
-//
-//       Promise.each(newMs)
-//         .then(results => {
-//           resolve(results);
-//         })
-//         .catch(err => {
-//           throw new Error(err);
-//         });
-//     })
-//     .catch(err => {
-//       log.error(err);
-//       reject(err);
-//     });
-// //});
 }
 /**
  * Map from gitlab user name to github
@@ -257,11 +262,18 @@ function _mapUser(user) {
   return ghUser || settings.github.user;
 }
 
-function _updateIssue(ghRepo, glIssue, ghIssue) {
-  return new Promise((resolve, reject) => {
+/**
+ * Update github issue with correct state
+ * @method _updateIssue
+ * @param {object} ghRepo target repo
+ * @param {object} glIssue source issue
+ * @param {object} ghIssue github issue to update
+ * @return {object} updated issue
+ */
+async function _updateIssue(ghRepo, glIssue, ghIssue) {
+  try {
     log.debug(`_updateIssue: `, glIssue.title, glIssue.iid);
     const options = _clone(gitHubOpts);
-    const baseURL = options.url;
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${ghIssue.number}`;
     options.method = `PATCH`;
     options.body   = {
@@ -269,17 +281,13 @@ function _updateIssue(ghRepo, glIssue, ghIssue) {
     };
 
     sleep();
-    request(options)
-      .then(response => {
-        //console.log(`updated issue ${response.number}`);
+    const response = await request(options);
 
-        resolve(response);
-      })
-      .catch(err => {
-        log.error(`_updateIssue failed for ${glIssue.title}, ${glIssue.iid}`);
-        reject(err);
-      });
-  });
+    return response;
+  } catch (err) {
+    log.error(`_updateIssue failed for ${glIssue.title}, ${glIssue.iid}`);
+    throw err;
+  }
 }
 
 /**
@@ -291,11 +299,11 @@ function _updateIssue(ghRepo, glIssue, ghIssue) {
  * @return {Promise}
  * @private
  */
-function _createIssueAndComments(ghRepo, issue, milestones) {
-  return new Promise((resolve, reject) => {
+async function _createIssueAndComments(ghRepo, issue, milestones) {
+  try {
+    //  return new Promise((resolve, reject) => {
     log.debug(`_createIssueAndComments: `, issue.title, issue.iid);
     const options = _clone(gitHubOpts);
-    const baseURL = options.url;
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues`;
     options.method = `POST`;
     options.body   = {
@@ -318,28 +326,25 @@ function _createIssueAndComments(ghRepo, issue, milestones) {
     }
 
     sleep();
-    request(options)
-      .then(response => {
-        log.debug(`- new issue ${response.number} vs ${issue.iid}, state:${issue.state}`);
-        return _updateIssue(ghRepo, issue, response);
-      })
-      .then(response => {
-        response.gitLabId = issue.id;
-        log.debug(`- update issue ${response.id}/${response.number} created`);
-        return _comments(ghRepo, response);
-      })
-      .then(response => {
-        //console.log(`updated issue ${response.number}`);
-
-        resolve(response);
-      })
-      .catch(err => {
-        log.error(`_createIssueAndComments failed for ${issue.title}, ${issue.iid}`);
-        reject(err);
-      });
-  });
+    let response = await request(options);
+    log.debug(`- new issue ${response.number} vs ${issue.iid}, state:${issue.state}`);
+    response          = await _updateIssue(ghRepo, issue, response);
+    response.gitLabId = issue.id;
+    log.debug(`- update issue ${response.id}/${response.number} created`);
+    response = await _comments(ghRepo, response);
+    return response;
+  } catch (err) {
+    log.error(`_createIssueAndComments failed for ${issue.title}, ${issue.iid}`);
+    throw err;
+  }
 }
 
+/**
+ * Blocking sleep function :(
+ * @method sleep
+ * @param {Number} [ms=4000] number of milliseconds to sleep for
+ * @private
+ */
 function sleep(ms = 4000) {
   const waitTimeInMilliseconds = new Date().getTime() + ms;
   while (new Date().getTime() < waitTimeInMilliseconds) {
@@ -348,54 +353,40 @@ function sleep(ms = 4000) {
 }
 
 /**
- * Hnalde creationg of issues and comments for this repo
+ * Handle creationg of issues and comments for this repo
  * @method _issuesAndComments
  * @param {Object} ghRepo target github repo
  * @param {Object} glRepo source gitlab repo
  * @param {Object} milestones known milestones for project
  * @return {Promise}
  */
-function _issuesAndComments(ghRepo, glRepo, milestones) {
-  return new Promise((resolve, reject) => {
-    log.debug(`_issues: ${ghRepo.name}`);
-    const options = _clone(gitLabOpts);
-    options.url += `projects/${glRepo.id}/issues?per_page=100&sort=asc`;
-    let glIssues;
+async function _issuesAndComments(ghRepo, glRepo, milestones) {
+  try {
     // get issues
     // for each issue, get comments
     // - create new issue, map MS if set
     // - on response, create new comment(s)
-    request(options)
-      .then(response => {
-        glIssues = response;
-        options.url += `&page=2`;
-        return request(options);
-      })
-      .then(response => {
-        glIssues = glIssues.concat(response);
-        glIssues.sort((a, b) => {
-          return a.iid - b.iid;
-        });
-        const newIssues = [];
-        log.warn(`Number of gitlab issues: ${glIssues.length}`);
-        //console.log(`issues: `, glIssues)
-        for (const issue of glIssues) {
-          newIssues.push(_createIssueAndComments(ghRepo, issue, milestones));
-        }
+    log.debug(`_issuesAndComments: ${ghRepo.name}`);
+    const options = _clone(gitLabOpts);
+    options.url += `projects/${glRepo.id}/issues?per_page=100&sort=asc`;
+    let glIssues = await request(options);
+    options.url += `&page=2`;
+    glIssues = glIssues.concat(await request(options));
+    glIssues.sort((a, b) => {
+      return a.iid - b.iid;
+    });
+    const newIssues = [];
+    log.warn(`Number of gitlab issues: ${glIssues.length}`);
+    //console.log(`issues: `, glIssues)
+    for (const issue of glIssues) {
+      newIssues.push(await _createIssueAndComments(ghRepo, issue, milestones));
+    }
 
-        Promise.all(newIssues)
-          .then(results => {
-            resolve(results);
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-      })
-      .catch(err => {
-        log.error(`_issues failed for repo: ${glRepo.name}`);
-        reject(err);
-      });
-  });
+    return newIssues;
+  } catch (err) {
+    log.error(`_issuesAndComments failed for repo: ${glRepo.name}`);
+    throw err;
+  }
 }
 
 /**
@@ -407,8 +398,8 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
  * @return {Promise}
  * @private
  */
-function _createComment(ghRepo, issue, comment) {
-  return new Promise((resolve, reject) => {
+async function _createComment(ghRepo, issue, comment) {
+  try {
     log.debug(`_createComment on ${issue.number} "${comment.body}"`);
     const options = _clone(gitHubOpts);
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${issue.number}/comments`;
@@ -418,18 +409,16 @@ function _createComment(ghRepo, issue, comment) {
     };
 
     sleep();
-    request(options)
-      .then(response => {
-        response.gitLabId = comment.id;
-        //console.log(`new comment`, response);
-        log.debug(`new comment ${response.id} for issue ${issue.number} created`);
-        resolve(response);
-      })
-      .catch(err => {
-        log.error(`_createComment failed for ${ghRepo.name} issue: ${issue.number}: "${options.body.body}"`);
-        reject(err);
-      });
-  });
+    const response = await request(options);
+
+    response.gitLabId = comment.id;
+    //console.log(`new comment`, response);
+    log.debug(`new comment ${response.id} for issue ${issue.number} created`);
+    return response;
+  } catch (err) {
+    log.error(`_createComment failed for ${ghRepo.name} issue: ${issue.number}: "${options.body.body}"`);
+    throw err;
+  }
 }
 
 /**
@@ -440,33 +429,24 @@ function _createComment(ghRepo, issue, comment) {
  * @return {Promise}
  * @private
  */
-function _comments(ghRepo, issue) {
-  return new Promise((resolve, reject) => {
+async function _comments(ghRepo, issue) {
+  try {
     log.debug(`_comments: ${ghRepo.name}`);
     const options = _clone(gitLabOpts);
     options.url += `projects/${ghRepo.gitLabId}/issues/${issue.gitLabId}/notes?sort=asc`;
 
     sleep();
-    request(options)
-      .then(response => {
-        const newComments = [];
-        for (const comment of response) {
-          newComments.push(_createComment(ghRepo, issue, comment));
-        }
+    const response    = await request(options);
+    const newComments = [];
+    for (const comment of response) {
+      newComments.push(await _createComment(ghRepo, issue, comment));
+    }
 
-        Promise.all(newComments)
-          .then(results => {
-            resolve(results);
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-      })
-      .catch(err => {
-        log.error(`_comments failed:`, err);
-        reject(err);
-      });
-  });
+    return newComments;
+  } catch (err) {
+    log.error(`_comments failed:`, err);
+    throw err;
+  }
 }
 
 /**
@@ -476,7 +456,7 @@ function _comments(ghRepo, issue) {
  * @return {Promise}
  * @private
  */
-function _migrate(repo) {
+async function _migrate(repo) {
   //  - find corresponding glRepo
   //   - get glLabels
   //   - get ghLabels
@@ -484,7 +464,7 @@ function _migrate(repo) {
   //   - for each glLabel
   //    - if glLabel not in ghLabels
   //     - add ghLabel
-  return new Promise((resolve, reject) => {
+  try {
     log.info(`_migrate ${repo.name}`);
 
     const glr = gitLabRepos.find(element => {
@@ -492,27 +472,21 @@ function _migrate(repo) {
     });
 
     if (!glr) {
-      resolve(`no corresponding repo found on gitlab, skipping...`);
+      return (`no corresponding repo found on gitlab, skipping...`);
     } else {
       repo.gitLabId = glr.id;
-      _labels(repo, glr)
-        .then(msg => {
-          log.debug(msg);
-          return _milestones(repo, glr);
-        })
-        .then(newMs => {
-          log.debug(newMs);
-          return _issuesAndComments(repo, glr, newMs);
-        })
-        .then(() => {
-          resolve(`migration of ${repo.name} complete`);
-        })
-        .catch(err => {
-          log.error(`_migrate ${repo.name} failed`);
-          reject(err);
-        });
+      const msg = await _labels(repo, glr);
+      log.debug(msg);
+      const newMilestones = await _milestones(repo, glr);
+      log.debug(`newMilestones:`, newMilestones);
+      await _issuesAndComments(repo, glr, newMilestones);
+      log.info(`migration of ${repo.name} complete`);
+      return; // `migration of ${repo.name} complete`;
     }
-  });
+  } catch (err) {
+    log.error(`_migrate ${repo.name} failed`);
+    throw err;
+  }
 }
 
 /**
@@ -722,7 +696,7 @@ export function authors() {
  * List known gitlab and github repos
  * @method projects
  */
-export function projects() {
+export function list() {
   _fetch()
     .then(status => {
       log.debug(`repos fetched`);
@@ -766,14 +740,6 @@ export function importAll() {
     .catch(err => {
       log.error(err);
     });
-}
-
-/**
- * List known apps.
- * @method list
- */
-export function list() {
-  console.log(manifest.apps);
 }
 
 /**

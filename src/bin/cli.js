@@ -17,10 +17,8 @@ commander
   .option(`-a, --authors [value]`, `map authors`)
   .option(`-D, --debug`, `enable debug messages`)
   .option(`-i, --import [value]`, `import named repo from gitlab into github`)
-  .option(`-l, --list`, `list know repos`)
-  .option(`-l, --list`, `list know repos`)
+  .option(`-l, --list`, `list known repos (gitlab and github)`)
   .option(`-M, --migrateAll`, `migrate labels/issues/comments for all repos`)
-  .option(`-p, --projects`, `list known remote projects`)
   .option(`-R, --remove [value]`, `remove named repo from github`)
   .option(`-m, --migrate [value]`, `migrate labels/issues/comments for all specific repo`);
 
@@ -52,8 +50,8 @@ if (commander.list) {
   migrate.migrateAll();
 } else if (commander.migrate) {
   migrate.migrate(commander.migrate);
-} else if (commander.projects) {
-  migrate.projects();
+} else if (commander.list) {
+  migrate.list();
 } else {
   commander.outputHelp();
 }
