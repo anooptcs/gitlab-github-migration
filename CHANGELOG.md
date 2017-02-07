@@ -1,5 +1,25 @@
+<a name="0.3.0"></a>
+# [0.3.0](https://github.com/mtechaccess/migrate/compare/0.2.2...v0.3.0) (2017-02-07)
+
+
+### build
+
+* use bable latest, gear up for using es2017 ([5fdf4eed1ebe5ecdfb76ff631e277b7e2ee78cac](https://github.com/mtechaccess/migrate/commit/5fdf4eed1ebe5ecdfb76ff631e277b7e2ee78cac))
+
+### task
+
+* (cli): minor cleanups ([2ade13a7abdec59c39e5c4e6acd52bc46e325691](https://github.com/mtechaccess/migrate/commit/2ade13a7abdec59c39e5c4e6acd52bc46e325691))
+
+### update
+
+* (migrate): create milestones with mapped state and ios date strings ([60ef229bda0c7d359682eff46d35285f157deb7d](https://github.com/mtechaccess/migrate/commit/60ef229bda0c7d359682eff46d35285f157deb7d))
+* (migrate): eslint `prefer-const`, refactor milestones and getRepo to use async/await ([f83ebc30c2d53e6667e86db3f1e16323164cc3a7](https://github.com/mtechaccess/migrate/commit/f83ebc30c2d53e6667e86db3f1e16323164cc3a7))
+* async all the things! thx QC ([19f3aa869ccc9840a49c2eb60faa386cccaac464](https://github.com/mtechaccess/migrate/commit/19f3aa869ccc9840a49c2eb60faa386cccaac464))
+
+
+
 <a name="0.2.2"></a>
-## [0.2.2](https://github.com/mtechaccess/migrate/compare/0.2.1...v0.2.2) (2017-02-06)
+## [0.2.2](https://github.com/mtechaccess/migrate/compare/0.2.1...0.2.2) (2017-02-06)
 
 
 ### feat
