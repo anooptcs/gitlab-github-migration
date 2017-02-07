@@ -1,5 +1,20 @@
+<a name="1.0.0"></a>
+# [1.0.0](https://github.com/mtechaccess/migrate/compare/0.3.1...v1.0.0) (2017-02-07)
+
+
+### docs
+
+* (README): usage notes ([2415f229d70f4f7d854da49ed92b6c707bd724d5](https://github.com/mtechaccess/migrate/commit/2415f229d70f4f7d854da49ed92b6c707bd724d5))
+
+### update
+
+* (cli): clean up options ([e39c5c8ac049b1e93e48922fa608a287098bbfe4](https://github.com/mtechaccess/migrate/commit/e39c5c8ac049b1e93e48922fa608a287098bbfe4))
+* (migrate): remove broken author mapping ([7b89e38e6444bab6f8830dadbcd70d6ff7d4cef4](https://github.com/mtechaccess/migrate/commit/7b89e38e6444bab6f8830dadbcd70d6ff7d4cef4))
+
+
+
 <a name="0.3.1"></a>
-## [0.3.1](https://github.com/mtechaccess/migrate/compare/0.3.0...v0.3.1) (2017-02-07)
+## [0.3.1](https://github.com/mtechaccess/migrate/compare/0.3.0...0.3.1) (2017-02-07)
 
 
 ### update
