@@ -3,7 +3,7 @@
     "allowUnknownTags": true,
     "dictionaries": ["jsdoc", "closure"]
   },
-  "plugins": [],
+  "plugins": ["node_modules/jsdoc-strip-async-await"],
   "templates": {
     "cleverLinks": true,
     "theme": "yeti",

@@ -1,11 +1,12 @@
 {
+  "parser":"babel-eslint",
   "parserOptions":{
-    "sourceType": "module"
+    "sourceType": "module",
+    "ecmaVersion": 7
   },
   "extends": "google",
   "env": {
-    "node": true,
-    "es6": true
+    "node": true
   },
   "rules": {
     "max-len": ["warn", 250, 2],
@@ -19,6 +20,7 @@
     }],
     "quotes": [2, "backtick"],
     "arrow-parens": ["error", "as-needed"],
-    "comma-dangle": ["error", "never"]
+    "comma-dangle": ["error", "never"],
+    "prefer-const": "error"
   }
 }
