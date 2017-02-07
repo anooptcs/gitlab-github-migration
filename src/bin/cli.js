@@ -13,20 +13,20 @@ log.info(`Gitlab to GitHub migration tool  %s!`, version);
 
 commander
   .version(version)
-  .option(`-A, --importAll`, `import all know repos`)
-  .option(`-a, --authors [value]`, `map authors`)
   .option(`-D, --debug`, `enable debug messages`)
   .option(`-i, --import [value]`, `import named repo from gitlab into github`)
+  .option(`-I, --importAll`, `import all know repos`)
   .option(`-l, --list`, `list known repos (gitlab and github)`)
+  .option(`-m, --migrate [value]`, `migrate labels/issues/comments for all specific repo`)
   .option(`-M, --migrateAll`, `migrate labels/issues/comments for all repos`)
-  .option(`-R, --remove [value]`, `remove named repo from github`)
-  .option(`-m, --migrate [value]`, `migrate labels/issues/comments for all specific repo`);
+  .option(`-R, --remove [value]`, `remove named repo from github`);
 
 commander.on(`--help`, function() {
   console.log(`Examples:
 
-    // migrate foobar repo
-    $ ma-migrate -i foobar
+    // import foobar repo
+    $ ma-migrate --import foobar
+    $ ma-migrate --migrate foobar
   `);
 });
 
@@ -42,8 +42,6 @@ if (commander.list) {
   migrate.remove(commander.remove);
 } else if (commander.import) {
   migrate.importer(commander.import);
-} else if (commander.authors) {
-  migrate.authors(commander.authors);
 } else if (commander.importAll) {
   migrate.importAll();
 } else if (commander.migrateAll) {
