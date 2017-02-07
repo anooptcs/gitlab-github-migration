@@ -1,6 +1,6 @@
 {
   "name": "ma-migrate",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "gitlab to github migration tool",
   "bin": {
     "ma-migrate": "dist/bin/cli.js"
