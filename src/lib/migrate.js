@@ -345,7 +345,7 @@ async function _createIssueAndComments(ghRepo, issue, milestones) {
  * @param {Number} [ms=4000] number of milliseconds to sleep for
  * @private
  */
-function sleep(ms = 4000) {
+function sleep(ms = 1100) {
   const waitTimeInMilliseconds = new Date().getTime() + ms;
   while (new Date().getTime() < waitTimeInMilliseconds) {
     true;
@@ -716,29 +716,36 @@ export function list() {
 }
 
 /**
+ * Handle importing of all repos from gitlab to github.
+ * @method _importAll
+ * @private
+ */
+async function _importAll() {
+  try {
+    for (const repo of gitLabRepos) {
+      log.debug(`=> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
+      await _import(repo.name);
+    }
+
+    log.info(`import all complete`);
+    return;
+  } catch (err) {
+    throw err;
+  }
+}
+
+/**
  * Import all gitlab repos to github
  * @method importAll
  */
 export function importAll() {
-  const toImport = [];
   _fetch()
     .then(status => {
       log.debug(`importAll fetch: ${status}`);
-      for (const repo of gitLabRepos) {
-        log.debug(`=> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
-        toImport.push(_import(repo.name));
-      }
-
-      Promise.all(toImport)
-        .then(() => {
-          log.info(`import all complete`);
-        })
-        .catch(err => {
-          throw new Error(err);
-        });
+      return _importAll();
     })
     .catch(err => {
-      log.error(err);
+      log.error(`importAll failed: `, err);
     });
 }
 
@@ -753,11 +760,30 @@ export function remove(project) {
   options.url += `repos/${settings.github.org}/${project}`;
   request(options)
     .then(response => {
-      log.info(response);
+      log.info(`${project} removed`);
     })
     .catch(err => {
       log.error(err);
     });
+}
+
+/**
+ * Handle migration of all repos from gitlab to github
+ * @method _migrateAll
+ * @private
+ */
+async function _migrateAll() {
+  try {
+    for (const repo of gitHubRepos) {
+      await _migrate(repo);
+    }
+
+    log.info(`_migrateAll complete`);
+    return;
+  } catch (err) {
+    log.error(`_migrateAll: bang!`);
+    throw err;
+  }
 }
 
 /**
@@ -766,22 +792,10 @@ export function remove(project) {
  * @method migrateAll
  */
 export function migrateAll() {
-  const toMigrate = [];
   _fetch()
     .then(status => {
       log.debug(`migrate all fetch: ${status}`);
-      for (const repo of gitHubRepos) {
-        toMigrate.push(_migrate(repo));
-      }
-
-      Promise.all(toMigrate)
-        .then(() => {
-          log.info(`migrate all complete`);
-        })
-        .catch(err => {
-          log.error(`migrate all: bang!`);
-          throw new Error(err);
-        });
+      return _migrateAll();
     })
     .catch(err => {
       log.error(`migrate all bang`);
