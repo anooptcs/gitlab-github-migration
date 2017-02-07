@@ -24,7 +24,6 @@ commander
   .option(`-R, --remove [value]`, `remove named repo from github`)
   .option(`-m, --migrate [value]`, `migrate labels/issues/comments for all specific repo`);
 
-
 commander.on(`--help`, function() {
   console.log(`Examples:
 
