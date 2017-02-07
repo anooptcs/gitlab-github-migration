@@ -17,7 +17,8 @@
 
 ## installation
 
-- clone
+- `git clone https://github.com/mtechaccess/gitlab-github-migration.git`
+- `cd gitlab-github-migration`
 - `npm install`
 - `gulp build`
 - `npm link` to make it globally accessible
@@ -29,8 +30,8 @@
 
 ## usage
 
-- `ma-migrate --import <repo>` to import repo from gitlab to github
-- `ma-migrate --migrate <repo>` to migrate repo milestones/labels/issues/comments from gitlab to github.
-- if you are feeling brave, you can run `ma-migrate --importAll` followed by `ma-migrate --migrateAll` to import and migrate all repos from gitlab to github.
+- `gitlab-github-migration --import <repo>` to import repo from gitlab to github
+- `gitlab-github-migration --migrate <repo>` to migrate repo milestones/labels/issues/comments from gitlab to github.
+- if you are feeling brave, you can run `gitlab-github-migration --importAll` followed by `gitlab-github-migration --migrateAll` to import and migrate all repos from gitlab to github.
   - this may exceed the github API call rate limit
 - add `-D` or `--debug` to get extra info

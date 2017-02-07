@@ -66,12 +66,12 @@
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/mtechaccess/migrate.git"
+    "url": "git+https://github.com/mtechaccess/gitlab-github-migration.git"
   },
   "bugs": {
-    "url": "https://github.com/mtechaccess/migrate/issues"
+    "url": "https://github.com/mtechaccess/gitlab-github-migration/issues"
   },
-  "homepage": "https://github.com/mtechaccess/migrate#readme",
+  "homepage": "https://github.com/mtechaccess/gitlab-github-migration#readme",
   "directories": {
     "doc": "docs"
   }
