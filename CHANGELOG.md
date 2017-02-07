@@ -1,5 +1,15 @@
+<a name="0.3.1"></a>
+## [0.3.1](https://github.com/mtechaccess/migrate/compare/0.3.0...v0.3.1) (2017-02-07)
+
+
+### update
+
+* reduce default sleep duration to 1100 ms. more syncing ([80d1ceed34999a18cc718b7eeb4191720169938a](https://github.com/mtechaccess/migrate/commit/80d1ceed34999a18cc718b7eeb4191720169938a))
+
+
+
 <a name="0.3.0"></a>
-# [0.3.0](https://github.com/mtechaccess/migrate/compare/0.2.2...v0.3.0) (2017-02-07)
+# [0.3.0](https://github.com/mtechaccess/migrate/compare/0.2.2...0.3.0) (2017-02-07)
 
 
 ### build
