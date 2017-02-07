@@ -519,33 +519,6 @@ function _import(project) {
 }
 
 /**
- * Failed imprt authors :(
- * @method _mapAuthors
- * @param {object} project [description]
- * @return {Promise} [description]
- * @private
- */
-function _mapAuthors(project) {
-  log.info(`map import authors`);
-  const options = _clone(gitHubOpts);
-  const url     = options.url;
-  options.url               = url + `repos/${settings.github.org}/${project}/import/authors`;
-  options.body              = null;
-  options.headers[`Accept`] = `application/vnd.github.barred-rock-preview`;
-  //console.log(options);
-  return new Promise((resolve, reject) => {
-    request(options)
-      .then(response => {
-        //console.log(response);
-        resolve();
-      })
-      .catch(err => {
-        reject(err);
-      });
-  });
-}
-
-/**
  * Fetch and cache known repos.
  * @method _fetch
  * @return {Promise}
@@ -606,22 +579,7 @@ export function importer(project) {
       log.error(`import failed:`, err);
     });
 }
-/**
- * Import single project from gitlab into github.
- * @method authors
- * @see {@link _import}
- */
-export function authors() {
-  log.info(`Add email address for users`);
 
-  _mapAuthors()
-    .then(() => {
-      log.info(`mapped`);
-    })
-    .catch(err => {
-      log.error(`mapping failed:`, err);
-    });
-}
 /**
  * List known gitlab and github repos
  * @method projects
