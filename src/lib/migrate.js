@@ -1,7 +1,6 @@
 'use strict';
 
 import log from '../lib/logger';
-import manifest from './manifest.json';
 import settings from '../../settings.json';
 import pkg from '../../package.json';
 
@@ -49,20 +48,7 @@ function _clone(obj) {
 }
 
 /**
- * No LabelsError
- * @method NoLabelsError
- * @param {string=} message error message
- */
-function NoLabelsError(message) {
-  this.name    = `NoLabelsError`;
-  this.message = message || `Default Message`;
-  this.stack   = (new Error()).stack;
-}
-NoLabelsError.prototype             = Object.create(Error.prototype);
-NoLabelsError.prototype.constructor = NoLabelsError;
-
-/**
- * Get gitlab labesl for repo, recreate for github repo.
+ * Get gitlab labels for repo, recreate for github repo.
  * @method _labels
  * @param {Object} ghRepo github repo
  * @param {Object} glRepo gitlab repo
@@ -122,62 +108,6 @@ async function _labels(ghRepo, glRepo) {
     log.error(`_labels failed for ${ghRepo.name}`);
     throw err;
   }
-
-// .then(response => {
-//   ghLabels = response;
-//   const newLabels = [];
-//
-//   log.debug(`-] have gh labels ${ghRepo.name}`);
-//   // now have all the labels for this repo.
-//   for (const glLabel of glLabels) {
-//     //console.log(`gllbael:`, glLabel);
-//     const found = ghLabels.find(element => {
-//       //console.log(`ghlabel: `, element);
-//       return element.name === glLabel.name;
-//     });
-//
-//     //  log.debug(`found: ${found}`);
-//
-//     if (!found) {
-//       log.debug(`- new label called ${glLabel.name} for ${ghRepo.name}, adding`);
-//       ghOpts.method = `POST`;
-//       ghOpts.url    = ghBaseURL + `repos/${settings.github.org}/${ghRepo.name}/labels`;
-//       ghOpts.body   = {
-//         name: glLabel.name,
-//         color: glLabel.color.replace(/\#/, ``)
-//       };
-//       //  console.log(ghOpts);
-//       newLabels.push(
-//         request(ghOpts)
-//       );
-//     }
-//   }
-//
-//   if (newLabels.length) {
-//     log.debug(`process new labels`);
-//     Promise.all(newLabels)
-//       .then(() => {
-//         log.debug(`labels added for ${ghRepo.name}`);
-//         resolve(`labels added`);
-//       })
-//       .catch(err => {
-//         log.error(`label add loop failed for ${ghRepo.name}`);
-//         throw new Error(err);
-//       });
-//   } else {
-//     log.debug(`no labels to add to ${ghRepo.name}, skipping`);
-//     resolve();
-//   }
-// })
-// .catch(err => {
-//   if (err instanceof NoLabelsError) {
-//     log.warn(`no labels for git lab repo ${ghRepo.name}`);
-//     resolve();
-//   } else {
-//     log.error(`labels fail ${ghRepo.name}`);
-//     reject(err);
-//   }
-// });
 }
 
 /**
