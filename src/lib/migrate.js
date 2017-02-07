@@ -5,7 +5,8 @@ import manifest from './manifest.json';
 import settings from '../../settings.json';
 import pkg from '../../package.json';
 
-import request from 'request-promise-native';
+import request from 'request-promise';
+import Promise from 'bluebird';
 import moment from 'moment';
 import waitFor from 'p-wait-for';
 
@@ -47,7 +48,6 @@ function _clone(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-
 /**
  * No LabelsError
  * @method NoLabelsError
@@ -74,9 +74,9 @@ function _labels(ghRepo, glRepo) {
   return new Promise((resolve, reject) => {
     let glLabels;
     let ghLabels;
-    let glOpts    = _clone(gitLabOpts);
-    let ghOpts    = _clone(gitHubOpts);
-    let ghBaseURL = ghOpts.url;
+    const glOpts    = _clone(gitLabOpts);
+    const ghOpts    = _clone(gitHubOpts);
+    const ghBaseURL = ghOpts.url;
     glOpts.url += `projects/${glRepo.id}/labels`;
     ghOpts.url += `repos/${settings.github.org}/${ghRepo.name}/labels`;
 
@@ -87,20 +87,19 @@ function _labels(ghRepo, glRepo) {
           log.debug(`-> have gl labels ${ghRepo.name}`);
           //console.log(ghOpts);
           return request(ghOpts);
-        } else {
-          log.debug(`no gl labels, ${ghRepo.name} resolve me!`);
-          throw new NoLabelsError(`no labels`);
         }
+        log.debug(`no gl labels, ${ghRepo.name} resolve me!`);
+        throw new NoLabelsError(`no labels`);
       })
       .then(response => {
         ghLabels = response;
-        let newLabels = [];
+        const newLabels = [];
 
         log.debug(`-] have gh labels ${ghRepo.name}`);
         // now have all the labels for this repo.
-        for (let glLabel of glLabels) {
+        for (const glLabel of glLabels) {
           //console.log(`gllbael:`, glLabel);
-          let found = ghLabels.find(element => {
+          const found = ghLabels.find(element => {
             //console.log(`ghlabel: `, element);
             return element.name === glLabel.name;
           });
@@ -158,30 +157,29 @@ function _labels(ghRepo, glRepo) {
  * @return {Promise}
  * @private
  */
-function _createMilestone(ghRepo, ms) {
-  let options = _clone(gitHubOpts);
-  options.url += `repos/${settings.github.org}/${ghRepo.name}/milestones`;
-  options.method = `POST`;
-  options.body   = {
-    title: ms.title,
-    description: ms.description,
-    state: ms.state !== `closed` ? `open` : `closed`
-  };
-  if (ms.due_date) {
-    options.body.due_on = moment(ms.due_date).toISOString();
-  }
+async function _createMilestone(ghRepo, ms) {
+  try {
+    log.debug(`- _createMilestone: ${ms.title}`);
+    const options = _clone(gitHubOpts);
+    options.url += `repos/${settings.github.org}/${ghRepo.name}/milestones`;
+    options.method = `POST`;
+    options.body   = {
+      title: ms.title,
+      description: ms.description,
+      state: ms.state !== `closed` ? `open` : `closed`
+    };
+    if (ms.due_date) {
+      options.body.due_on = moment(ms.due_date).toISOString();
+    }
 
-  return new Promise((resolve, reject) => {
-    request(options)
-      .then(response => {
-        response.gitLabId = ms.id;
-        resolve(response);
-      })
-      .catch(err => {
-        log.error(`createMilestone failed for "${options.title}"`);
-        reject(err);
-      });
-  });
+    const response = await request(options);
+    response.gitLabId = ms.id;
+    log.debug(`- milestone created!`);
+    return response;
+  } catch (err) {
+    log.error(`_createMilestone failed for "${options.title}"`);
+    throw err;
+  }
 }
 
 /**
@@ -192,42 +190,57 @@ function _createMilestone(ghRepo, ms) {
  * @return {Promise}
  * @private
  */
-function _milestones(ghRepo, glRepo) {
-  return new Promise((resolve, reject) => {
+async function _milestones(ghRepo, glRepo) {
+  // get milestones for glr
+  // for each MS
+  // - create new gh MS
+  // - map response id to gl MS
+  // hand mapped ms to resolve
+  try {
     log.debug(`_milestones: ${ghRepo.name}`);
-    let options = _clone(gitLabOpts);
+    const options = _clone(gitLabOpts);
     options.url += `projects/${glRepo.id}/milestones?sort=asc`;
-    let glMilestones;
-    // get milestones for glr
-    // for each MS
-    // - create new gh MS
-    // - map response id to gl MS
-    // hand mapped ms to resolve
-    request(options)
-      .then(response => {
-        glMilestones = response;
-        glMilestones.sort((a, b) => {
-          return a.iid - b.iid;
-        });
-        let newMs = [];
-        //console.log(`sorted milestones:`, glMilestones);
-        for (let ms of glMilestones) {
-          newMs.push(_createMilestone(ghRepo, ms));
-        }
+    const glMilestones = await request(options);
+    glMilestones.sort((a, b) => {
+      return a.iid - b.iid;
+    });
+    const newMilestones = [];
 
-        Promise.all(newMs)
-          .then(results => {
-            resolve(results);
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-      })
-      .catch(err => {
-        log.error(err);
-        reject(err);
-      });
-  });
+    for (const ms of glMilestones) {
+      newMilestones.push(await _createMilestone(ghRepo, ms));
+    }
+
+    return newMilestones;
+  } catch (err) {
+    log.error(`_milestones failed`);
+    throw err;
+  }
+//   //return new Promise((resolve, reject) => {
+//   request(options)
+//     .then(response => {
+//       glMilestones = response;
+//       glMilestones.sort((a, b) => {
+//         return a.iid - b.iid;
+//       });
+//       const newMs = [];
+//       //console.log(`sorted milestones:`, glMilestones);
+//       for (const ms of glMilestones) {
+//         newMs.push(_createMilestone(ghRepo, ms));
+//       }
+//
+//       Promise.each(newMs)
+//         .then(results => {
+//           resolve(results);
+//         })
+//         .catch(err => {
+//           throw new Error(err);
+//         });
+//     })
+//     .catch(err => {
+//       log.error(err);
+//       reject(err);
+//     });
+// //});
 }
 /**
  * Map from gitlab user name to github
@@ -247,8 +260,8 @@ function _mapUser(user) {
 function _updateIssue(ghRepo, glIssue, ghIssue) {
   return new Promise((resolve, reject) => {
     log.debug(`_updateIssue: `, glIssue.title, glIssue.iid);
-    let options = _clone(gitHubOpts);
-    let baseURL = options.url;
+    const options = _clone(gitHubOpts);
+    const baseURL = options.url;
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${ghIssue.number}`;
     options.method = `PATCH`;
     options.body   = {
@@ -281,8 +294,8 @@ function _updateIssue(ghRepo, glIssue, ghIssue) {
 function _createIssueAndComments(ghRepo, issue, milestones) {
   return new Promise((resolve, reject) => {
     log.debug(`_createIssueAndComments: `, issue.title, issue.iid);
-    let options = _clone(gitHubOpts);
-    let baseURL = options.url;
+    const options = _clone(gitHubOpts);
+    const baseURL = options.url;
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues`;
     options.method = `POST`;
     options.body   = {
@@ -294,7 +307,7 @@ function _createIssueAndComments(ghRepo, issue, milestones) {
 
     // if issue was part of milestone, get corresponding github milestone number
     if (issue.milestone) {
-      let ms = milestones.find(element => {
+      const ms = milestones.find(element => {
         return element.gitLabId === issue.milestone.id;
       });
       if (ms) {
@@ -328,7 +341,7 @@ function _createIssueAndComments(ghRepo, issue, milestones) {
 }
 
 function sleep(ms = 4000) {
-  let waitTimeInMilliseconds = new Date().getTime() + ms;
+  const waitTimeInMilliseconds = new Date().getTime() + ms;
   while (new Date().getTime() < waitTimeInMilliseconds) {
     true;
   }
@@ -345,7 +358,7 @@ function sleep(ms = 4000) {
 function _issuesAndComments(ghRepo, glRepo, milestones) {
   return new Promise((resolve, reject) => {
     log.debug(`_issues: ${ghRepo.name}`);
-    let options = _clone(gitLabOpts);
+    const options = _clone(gitLabOpts);
     options.url += `projects/${glRepo.id}/issues?per_page=100&sort=asc`;
     let glIssues;
     // get issues
@@ -363,10 +376,10 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
         glIssues.sort((a, b) => {
           return a.iid - b.iid;
         });
-        let newIssues = [];
+        const newIssues = [];
         log.warn(`Number of gitlab issues: ${glIssues.length}`);
         //console.log(`issues: `, glIssues)
-        for (let issue of glIssues) {
+        for (const issue of glIssues) {
           newIssues.push(_createIssueAndComments(ghRepo, issue, milestones));
         }
 
@@ -397,7 +410,7 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
 function _createComment(ghRepo, issue, comment) {
   return new Promise((resolve, reject) => {
     log.debug(`_createComment on ${issue.number} "${comment.body}"`);
-    let options = _clone(gitHubOpts);
+    const options = _clone(gitHubOpts);
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${issue.number}/comments`;
     options.method = `POST`;
     options.body   = {
@@ -430,14 +443,14 @@ function _createComment(ghRepo, issue, comment) {
 function _comments(ghRepo, issue) {
   return new Promise((resolve, reject) => {
     log.debug(`_comments: ${ghRepo.name}`);
-    let options = _clone(gitLabOpts);
+    const options = _clone(gitLabOpts);
     options.url += `projects/${ghRepo.gitLabId}/issues/${issue.gitLabId}/notes?sort=asc`;
 
     sleep();
     request(options)
       .then(response => {
-        let newComments = [];
-        for (let comment of response) {
+        const newComments = [];
+        for (const comment of response) {
           newComments.push(_createComment(ghRepo, issue, comment));
         }
 
@@ -474,7 +487,7 @@ function _migrate(repo) {
   return new Promise((resolve, reject) => {
     log.info(`_migrate ${repo.name}`);
 
-    let glr = gitLabRepos.find(element => {
+    const glr = gitLabRepos.find(element => {
       return element.name === repo.name;
     });
 
@@ -517,8 +530,8 @@ function _migrate(repo) {
  * @private
  */
 function _import(project) {
-  let ghopts  = _clone(gitHubOpts);
-  let baseURL = ghopts.url;
+  const ghopts  = _clone(gitHubOpts);
+  const baseURL = ghopts.url;
   let glr;
   let ghr;
   return new Promise((resolve, reject) => {
@@ -610,8 +623,8 @@ function _import(project) {
  */
 function _mapAuthors(project) {
   log.info(`map import authors`);
-  let options = _clone(gitHubOpts);
-  let url     = options.url;
+  const options = _clone(gitHubOpts);
+  const url     = options.url;
   options.url               = url + `repos/${settings.github.org}/${project}/import/authors`;
   options.body              = null;
   options.headers[`Accept`] = `application/vnd.github.barred-rock-preview`;
@@ -634,26 +647,18 @@ function _mapAuthors(project) {
  * @return {Promise}
  * @private
  */
-function _fetch() {
+async function _fetch() {
   log.debug(`fetch known repos`);
-  return new Promise((resolve, reject) => {
-    if (gitLabRepos && gitHubRepos) {
-      resolve(`already fetched`);
-    } else {
-      _getRepos()
-        .then(repos => {
-          gitLabRepos = repos;
-          return _getRepos(false);
-        })
-        .then(repos => {
-          gitHubRepos = repos;
-          resolve(`fetched`);
-        })
-        .catch(err => {
-          reject(err);
-        });
-    }
-  });
+  if (gitLabRepos && gitHubRepos) {
+    return (`already fetched`);
+  }
+  try {
+    gitLabRepos = await _getRepos();
+    gitHubRepos = await _getRepos(false);
+    return `fetched`;
+  } catch (err) {
+    throw new Error(`fetch failed`);
+  }
 }
 
 /**
@@ -663,19 +668,16 @@ function _fetch() {
  * @return {Promise}
  * @private
  */
-function _getRepos(isGitlab = true) {
-  return new Promise((resolve, reject) => {
-    let options = isGitlab ? _clone(gitLabOpts) : _clone(gitHubOpts);
-    options.url += isGitlab ? `projects?per_page=100` : `orgs/${settings.github.org}/repos?per_page=100&now=${moment().unix()}`;
+async function _getRepos(isGitlab = true) {
+  const options = isGitlab ? _clone(gitLabOpts) : _clone(gitHubOpts);
+  options.url += isGitlab ? `projects?per_page=100` : `orgs/${settings.github.org}/repos?per_page=100&now=${moment().unix()}`;
 
-    request(options)
-      .then(repos => {
-        resolve(repos);
-      })
-      .catch(err => {
-        reject(err);
-      });
-  });
+  try {
+    const repos = await request(options);
+    return repos;
+  } catch (err) {
+    throw new Error(err);
+  }
 }
 
 /**
@@ -725,12 +727,12 @@ export function projects() {
     .then(status => {
       log.debug(`repos fetched`);
       log.info(`GitLab repos (${gitLabRepos.length}):`);
-      for (let repo of gitLabRepos) {
+      for (const repo of gitLabRepos) {
         log.info(`=> ${repo.id}:${repo.name}:${repo.web_url}`);
       }
       log.info(`--------`);
       log.info(`GitHub repos (${gitHubRepos.length}):`);
-      for (let repo of gitHubRepos) {
+      for (const repo of gitHubRepos) {
         log.info(`=> ${repo.id}:${repo.name}:${repo.url}`);
       }
     })
@@ -744,11 +746,11 @@ export function projects() {
  * @method importAll
  */
 export function importAll() {
-  let toImport = [];
+  const toImport = [];
   _fetch()
     .then(status => {
       log.debug(`importAll fetch: ${status}`);
-      for (let repo of gitLabRepos) {
+      for (const repo of gitLabRepos) {
         log.debug(`=> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
         toImport.push(_import(repo.name));
       }
@@ -780,7 +782,7 @@ export function list() {
  * @param {string} project to remove
  */
 export function remove(project) {
-  let options = _clone(gitHubOpts);
+  const options = _clone(gitHubOpts);
   options.method = `DELETE`;
   options.url += `repos/${settings.github.org}/${project}`;
   request(options)
@@ -798,11 +800,11 @@ export function remove(project) {
  * @method migrateAll
  */
 export function migrateAll() {
-  let toMigrate = [];
+  const toMigrate = [];
   _fetch()
     .then(status => {
       log.debug(`migrate all fetch: ${status}`);
-      for (let repo of gitHubRepos) {
+      for (const repo of gitHubRepos) {
         toMigrate.push(_migrate(repo));
       }
 
@@ -830,15 +832,14 @@ export function migrate(project) {
   _fetch()
     .then(status => {
       log.debug(`migrate fetch: ${status}`);
-      let ghRepo = gitHubRepos.find(element => {
+      const ghRepo = gitHubRepos.find(element => {
         return element.name === project;
       });
 
       if (ghRepo) {
         return _migrate(ghRepo);
-      } else {
-        throw new Error(`unknown repo ${project}`);
       }
+      throw new Error(`unknown repo ${project}`);
     })
     .catch(err => {
       log.error(`migrate bang`);
