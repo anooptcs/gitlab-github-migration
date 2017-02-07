@@ -1,5 +1,5 @@
 'use strict';
-
+/** @flow */
 import log from '../lib/logger';
 import settings from '../../settings.json';
 import pkg from '../../package.json';
@@ -43,7 +43,7 @@ let gitHubRepos;
  * @param {Object} obj to be cloned
  * @return {Object} clone
  */
-function _clone(obj) {
+function _clone(obj: Object): Object {
   return JSON.parse(JSON.stringify(obj));
 }
 
@@ -52,10 +52,10 @@ function _clone(obj) {
  * @method _labels
  * @param {Object} ghRepo github repo
  * @param {Object} glRepo gitlab repo
- * @return {Promise}
+ * @return {(Object|boolean)}
  * @private
  */
-async function _labels(ghRepo, glRepo) {
+async function _labels(ghRepo: Object, glRepo: Object): (Object|boolean) {
   try {
     log.debug(`_labels: ${ghRepo.name}`);
     let glLabels;
@@ -115,10 +115,11 @@ async function _labels(ghRepo, glRepo) {
  * @method _createMilestone
  * @param {Object} ghRepo target repo
  * @param {Object} ms milestone to create
- * @return {Promise}
+ * @return {Object} new milestone
+ * @throws request error
  * @private
  */
-async function _createMilestone(ghRepo, ms) {
+async function _createMilestone(ghRepo: Object, ms: Object): Object {
   try {
     log.debug(`- _createMilestone: ${ms.title}`);
     const options = _clone(gitHubOpts);
@@ -151,7 +152,7 @@ async function _createMilestone(ghRepo, ms) {
  * @return {Promise}
  * @private
  */
-async function _milestones(ghRepo, glRepo) {
+async function _milestones(ghRepo: Object, glRepo: Object): Object {
   // get milestones for glr
   // for each MS
   // - create new gh MS
@@ -184,7 +185,7 @@ async function _milestones(ghRepo, glRepo) {
  * @return {string} github user name or gurrent github user if not found
  * @private
  */
-function _mapUser(user) {
+function _mapUser(user: string): string {
   let ghUser = null;
   if (user) {
     ghUser = settings.mapping[user];
@@ -200,7 +201,7 @@ function _mapUser(user) {
  * @param {object} ghIssue github issue to update
  * @return {object} updated issue
  */
-async function _updateIssue(ghRepo, glIssue, ghIssue) {
+async function _updateIssue(ghRepo: Object, glIssue: Object, ghIssue: Object): Object {
   try {
     log.debug(`_updateIssue: `, glIssue.title, glIssue.iid);
     const options = _clone(gitHubOpts);
@@ -229,7 +230,7 @@ async function _updateIssue(ghRepo, glIssue, ghIssue) {
  * @return {Promise}
  * @private
  */
-async function _createIssueAndComments(ghRepo, issue, milestones) {
+async function _createIssueAndComments(ghRepo: Object, issue: Object, milestones: Object[]): Object {
   try {
     //  return new Promise((resolve, reject) => {
     log.debug(`_createIssueAndComments: `, issue.title, issue.iid);
@@ -275,7 +276,7 @@ async function _createIssueAndComments(ghRepo, issue, milestones) {
  * @param {Number} [ms=4000] number of milliseconds to sleep for
  * @private
  */
-function sleep(ms = 1100) {
+function sleep(ms : number = 1100) {
   const waitTimeInMilliseconds = new Date().getTime() + ms;
   while (new Date().getTime() < waitTimeInMilliseconds) {
     true;
@@ -290,7 +291,7 @@ function sleep(ms = 1100) {
  * @param {Object} milestones known milestones for project
  * @return {Promise}
  */
-async function _issuesAndComments(ghRepo, glRepo, milestones) {
+async function _issuesAndComments(ghRepo: Object, glRepo: Object, milestones: Object[]): Array<Object> {
   try {
     // get issues
     // for each issue, get comments
@@ -328,7 +329,7 @@ async function _issuesAndComments(ghRepo, glRepo, milestones) {
  * @return {Promise}
  * @private
  */
-async function _createComment(ghRepo, issue, comment) {
+async function _createComment(ghRepo: Object, issue: Object, comment: Object): Object {
   try {
     log.debug(`_createComment on ${issue.number} "${comment.body}"`);
     const options = _clone(gitHubOpts);
@@ -356,10 +357,10 @@ async function _createComment(ghRepo, issue, comment) {
  * @method _comments
  * @param {Object} ghRepo targetrepo
  * @param {Object} issue github issue
- * @return {Promise}
+ * @return {Array.<Object>}
  * @private
  */
-async function _comments(ghRepo, issue) {
+async function _comments(ghRepo: Object, issue: Object): Array[Object] {
   try {
     log.debug(`_comments: ${ghRepo.name}`);
     const options = _clone(gitLabOpts);
@@ -563,7 +564,7 @@ async function _getRepos(isGitlab = true) {
  * @see {@link _import}
  * @param {string} project name of project to import
  */
-export function importer(project) {
+export function importer(project :string) {
   if (!project) {
     log.error(`No project name passed!`);
     return;
@@ -642,7 +643,7 @@ export function importAll() {
  * @method remove
  * @param {string} project to remove
  */
-export function remove(project) {
+export function remove(project: string) {
   const options = _clone(gitHubOpts);
   options.method = `DELETE`;
   options.url += `repos/${settings.github.org}/${project}`;
@@ -696,7 +697,7 @@ export function migrateAll() {
  * @method migrate
  * @param {string} project to migrate
  */
-export function migrate(project) {
+export function migrate(project: string) {
   _fetch()
     .then(status => {
       log.debug(`migrate fetch: ${status}`);
