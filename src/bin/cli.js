@@ -6,7 +6,7 @@ import commander from 'commander';
 import * as migrate from '../lib/migrate';
 import log from '../lib/logger';
 import {version} from '../../package.json';
-
+process.env.UV_THREADPOOL_SIZE = 128;
 // ====================================
 // main
 log.info(`Gitlab to GitHub migration tool  %s!`, version);
@@ -47,7 +47,7 @@ if (commander.list) {
   migrate.importer(commander.import);
 } else if (commander.authors) {
   migrate.authors(commander.authors);
-} else if (commander.all) {
+} else if (commander.importAll) {
   migrate.importAll();
 } else if (commander.migrateAll) {
   migrate.migrateAll();

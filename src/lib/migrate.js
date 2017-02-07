@@ -14,7 +14,8 @@ const gitLabOpts = {
   headers: {
     "PRIVATE-TOKEN": settings.gitlab.token
   },
-  json: true
+  json: true,
+  timeout: 10000
 };
 
 const gitHubOpts = {
@@ -25,7 +26,11 @@ const gitHubOpts = {
     Accept: `application/vnd.github.v3+json`,
     "Cache-Control": `no-cache,no-store`
   },
-  json: true
+  json: true,
+  timeout: 20000,
+  pool: {
+    maxSockets: 2
+  }
 };
 
 // cached know repos here.
@@ -160,7 +165,7 @@ function _createMilestone(ghRepo, ms) {
   options.body   = {
     title: ms.title,
     description: ms.description,
-    state: ms.state === `active` ? `open` : `closed`
+    state: ms.state !== `closed` ? `open` : `closed`
   };
   if (ms.due_date) {
     options.body.due_on = moment(ms.due_date).toISOString();
@@ -170,10 +175,10 @@ function _createMilestone(ghRepo, ms) {
     request(options)
       .then(response => {
         response.gitLabId = ms.id;
-        resolve(ms);
+        resolve(response);
       })
       .catch(err => {
-        log.error(`createMilestone failed`);
+        log.error(`createMilestone failed for "${options.title}"`);
         reject(err);
       });
   });
@@ -191,7 +196,7 @@ function _milestones(ghRepo, glRepo) {
   return new Promise((resolve, reject) => {
     log.debug(`_milestones: ${ghRepo.name}`);
     let options = _clone(gitLabOpts);
-    options.url += `projects/${glRepo.id}/milestones`;
+    options.url += `projects/${glRepo.id}/milestones?sort=asc`;
     let glMilestones;
     // get milestones for glr
     // for each MS
@@ -201,8 +206,11 @@ function _milestones(ghRepo, glRepo) {
     request(options)
       .then(response => {
         glMilestones = response;
+        glMilestones.sort((a, b) => {
+          return a.iid - b.iid;
+        });
         let newMs = [];
-        //console.log(glMilestones);
+        //console.log(`sorted milestones:`, glMilestones);
         for (let ms of glMilestones) {
           newMs.push(_createMilestone(ghRepo, ms));
         }
@@ -225,7 +233,7 @@ function _milestones(ghRepo, glRepo) {
  * Map from gitlab user name to github
  * @method _mapUser
  * @param {string} user gitlab user name
- * @return {string} github user name
+ * @return {string} github user name or gurrent github user if not found
  * @private
  */
 function _mapUser(user) {
@@ -233,7 +241,32 @@ function _mapUser(user) {
   if (user) {
     ghUser = settings.mapping[user];
   }
-  return ghUser || user;
+  return ghUser || settings.github.user;
+}
+
+function _updateIssue(ghRepo, glIssue, ghIssue) {
+  return new Promise((resolve, reject) => {
+    log.debug(`_updateIssue: `, glIssue.title, glIssue.iid);
+    let options = _clone(gitHubOpts);
+    let baseURL = options.url;
+    options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${ghIssue.number}`;
+    options.method = `PATCH`;
+    options.body   = {
+      state: glIssue.state !== `closed` ? `open` : `closed`
+    };
+
+    sleep();
+    request(options)
+      .then(response => {
+        //console.log(`updated issue ${response.number}`);
+
+        resolve(response);
+      })
+      .catch(err => {
+        log.error(`_updateIssue failed for ${glIssue.title}, ${glIssue.iid}`);
+        reject(err);
+      });
+  });
 }
 
 /**
@@ -246,9 +279,8 @@ function _mapUser(user) {
  * @private
  */
 function _createIssueAndComments(ghRepo, issue, milestones) {
-  log.debug(`_createIssue`);
-  //console.log(issue, milestones);
   return new Promise((resolve, reject) => {
+    log.debug(`_createIssueAndComments: `, issue.title, issue.iid);
     let options = _clone(gitHubOpts);
     let baseURL = options.url;
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues`;
@@ -266,35 +298,40 @@ function _createIssueAndComments(ghRepo, issue, milestones) {
         return element.gitLabId === issue.milestone.id;
       });
       if (ms) {
-        options.milestone = ms.number;
+        options.body.milestone = ms.number;
       }
+
+    //console.log(`- create this issue issue.ms: ${issue.milestone.iid} vs. ${options.body.milestone}`);
     }
 
+    sleep();
     request(options)
       .then(response => {
-        //console.log(`new issue`, response);
-        // edit issue to match current gitlab state
-        options.url    = baseURL + `repos/${settings.github.org}/${ghRepo.name}/issues/${response.number}`;
-        options.method = `PATCH`;
-        // map gl `active` to gh `open`
-        options.body = {
-          state: issue.state === `active` ? `open` : `closed`
-        };
-        return request(options);
+        log.debug(`- new issue ${response.number} vs ${issue.iid}, state:${issue.state}`);
+        return _updateIssue(ghRepo, issue, response);
       })
       .then(response => {
         response.gitLabId = issue.id;
-        log.debug(`new issue ${response.id} created`);
+        log.debug(`- update issue ${response.id}/${response.number} created`);
         return _comments(ghRepo, response);
       })
       .then(response => {
+        //console.log(`updated issue ${response.number}`);
+
         resolve(response);
       })
       .catch(err => {
-        log.error(`_createIssue failed`);
+        log.error(`_createIssueAndComments failed for ${issue.title}, ${issue.iid}`);
         reject(err);
       });
   });
+}
+
+function sleep(ms = 4000) {
+  let waitTimeInMilliseconds = new Date().getTime() + ms;
+  while (new Date().getTime() < waitTimeInMilliseconds) {
+    true;
+  }
 }
 
 /**
@@ -309,7 +346,7 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
   return new Promise((resolve, reject) => {
     log.debug(`_issues: ${ghRepo.name}`);
     let options = _clone(gitLabOpts);
-    options.url += `projects/${glRepo.id}/issues`;
+    options.url += `projects/${glRepo.id}/issues?per_page=100&sort=asc`;
     let glIssues;
     // get issues
     // for each issue, get comments
@@ -318,8 +355,17 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
     request(options)
       .then(response => {
         glIssues = response;
+        options.url += `&page=2`;
+        return request(options);
+      })
+      .then(response => {
+        glIssues = glIssues.concat(response);
+        glIssues.sort((a, b) => {
+          return a.iid - b.iid;
+        });
         let newIssues = [];
-        //console.log(glIssues);
+        log.warn(`Number of gitlab issues: ${glIssues.length}`);
+        //console.log(`issues: `, glIssues)
         for (let issue of glIssues) {
           newIssues.push(_createIssueAndComments(ghRepo, issue, milestones));
         }
@@ -333,7 +379,7 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
           });
       })
       .catch(err => {
-        log.error(`_issues failed`);
+        log.error(`_issues failed for repo: ${glRepo.name}`);
         reject(err);
       });
   });
@@ -350,7 +396,7 @@ function _issuesAndComments(ghRepo, glRepo, milestones) {
  */
 function _createComment(ghRepo, issue, comment) {
   return new Promise((resolve, reject) => {
-    log.debug(`_createComment`);
+    log.debug(`_createComment on ${issue.number} "${comment.body}"`);
     let options = _clone(gitHubOpts);
     options.url += `repos/${settings.github.org}/${ghRepo.name}/issues/${issue.number}/comments`;
     options.method = `POST`;
@@ -358,15 +404,16 @@ function _createComment(ghRepo, issue, comment) {
       body: comment.body
     };
 
+    sleep();
     request(options)
       .then(response => {
         response.gitLabId = comment.id;
         //console.log(`new comment`, response);
-        log.debug(`new comment ${response.id} created`);
+        log.debug(`new comment ${response.id} for issue ${issue.number} created`);
         resolve(response);
       })
       .catch(err => {
-        log.error(`_createComment failed`);
+        log.error(`_createComment failed for ${ghRepo.name} issue: ${issue.number}: "${options.body.body}"`);
         reject(err);
       });
   });
@@ -384,8 +431,9 @@ function _comments(ghRepo, issue) {
   return new Promise((resolve, reject) => {
     log.debug(`_comments: ${ghRepo.name}`);
     let options = _clone(gitLabOpts);
-    options.url += `projects/${ghRepo.gitLabId}/issues/${issue.gitLabId}/notes`;
+    options.url += `projects/${ghRepo.gitLabId}/issues/${issue.gitLabId}/notes?sort=asc`;
 
+    sleep();
     request(options)
       .then(response => {
         let newComments = [];
@@ -542,7 +590,7 @@ function _import(project) {
             }
             log.debug(`import progress: ${res.status}`);
             return false;
-          }), 500);
+          }), 2000);
       })
       .then(() => {
         resolve(`import of ${project} complete`);
@@ -567,11 +615,11 @@ function _mapAuthors(project) {
   options.url               = url + `repos/${settings.github.org}/${project}/import/authors`;
   options.body              = null;
   options.headers[`Accept`] = `application/vnd.github.barred-rock-preview`;
-  console.log(options);
+  //console.log(options);
   return new Promise((resolve, reject) => {
     request(options)
       .then(response => {
-        console.log(response);
+        //console.log(response);
         resolve();
       })
       .catch(err => {
@@ -678,12 +726,12 @@ export function projects() {
       log.debug(`repos fetched`);
       log.info(`GitLab repos (${gitLabRepos.length}):`);
       for (let repo of gitLabRepos) {
-        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
+        log.info(`=> ${repo.id}:${repo.name}:${repo.web_url}`);
       }
-      console.log(`---`);
+      log.info(`--------`);
       log.info(`GitHub repos (${gitHubRepos.length}):`);
       for (let repo of gitHubRepos) {
-        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.url}`);
+        log.info(`=> ${repo.id}:${repo.name}:${repo.url}`);
       }
     })
     .catch(err => {
@@ -701,7 +749,7 @@ export function importAll() {
     .then(status => {
       log.debug(`importAll fetch: ${status}`);
       for (let repo of gitLabRepos) {
-        console.log(`> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
+        log.debug(`=> ${repo.id}:${repo.name}:${repo.description}:${repo.web_url}`);
         toImport.push(_import(repo.name));
       }
 
