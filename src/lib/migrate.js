@@ -138,7 +138,7 @@ async function _createMilestone(ghRepo, ms) {
     log.debug(`- milestone created!`);
     return response;
   } catch (err) {
-    log.error(`_createMilestone failed for "${options.title}"`);
+    log.error(`_createMilestone failed for "${ms.title}"`);
     throw err;
   }
 }
@@ -161,14 +161,17 @@ async function _milestones(ghRepo, glRepo) {
     log.debug(`_milestones: ${ghRepo.name}`);
     const options = _clone(gitLabOpts);
     options.url += `projects/${glRepo.id}/milestones?sort=asc`;
-    const glMilestones = await request(options);
-    glMilestones.sort((a, b) => {
-      return a.iid - b.iid;
-    });
+    const glMilestones  = await request(options);
     const newMilestones = [];
 
-    for (const ms of glMilestones) {
-      newMilestones.push(await _createMilestone(ghRepo, ms));
+    if (glMilestones && glMilestones.length) {
+      glMilestones.sort((a, b) => {
+        return a.iid - b.iid;
+      });
+
+      for (const ms of glMilestones) {
+        newMilestones.push(await _createMilestone(ghRepo, ms));
+      }
     }
 
     return newMilestones;
