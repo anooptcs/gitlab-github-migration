@@ -1,5 +1,15 @@
+<a name="1.1.1"></a>
+## [1.1.1](https://github.com/mtechaccess/gitlab-github-migration/compare/1.1.0...v1.1.1) (2017-02-08)
+
+
+### update
+
+* (package): rename app ([5c9542198976bfa483c7b129012230b6ba215e1f](https://github.com/mtechaccess/gitlab-github-migration/commit/5c9542198976bfa483c7b129012230b6ba215e1f))
+
+
+
 <a name="1.1.0"></a>
-# [1.1.0](https://github.com/mtechaccess/gitlab-github-migration/compare/1.0.0...v1.1.0) (2017-02-07)
+# [1.1.0](https://github.com/mtechaccess/gitlab-github-migration/compare/1.0.0...1.1.0) (2017-02-07)
 
 
 ### update
