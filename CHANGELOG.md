@@ -1,5 +1,15 @@
+<a name="1.1.2"></a>
+## [1.1.2](https://github.com/mtechaccess/gitlab-github-migration/compare/1.1.1...v1.1.2) (2017-02-08)
+
+
+### fix
+
+* (migrate): corrected error message. only create milestones if there are some ([2fa6d5000eb460bdfa70ac5f71d245779709eef4](https://github.com/mtechaccess/gitlab-github-migration/commit/2fa6d5000eb460bdfa70ac5f71d245779709eef4))
+
+
+
 <a name="1.1.1"></a>
-## [1.1.1](https://github.com/mtechaccess/gitlab-github-migration/compare/1.1.0...v1.1.1) (2017-02-08)
+## [1.1.1](https://github.com/mtechaccess/gitlab-github-migration/compare/1.1.0...1.1.1) (2017-02-08)
 
 
 ### update
